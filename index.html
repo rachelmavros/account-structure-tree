@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Account Structure Tree</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1f2933}
+header{background:#1a73e8;color:#fff;padding:18px 26px}header h1{margin:0;font-size:20px}header p{margin:4px 0 0;font-size:13px;opacity:.9}
+.wrap{padding:22px 26px}.card{background:#fff;border:1px solid #e3e8ef;border-radius:10px;padding:18px;margin-bottom:20px}
+.card h3{margin:0 0 10px;font-size:15px}
+.controls{display:flex;flex-wrap:wrap;gap:18px 22px;align-items:flex-end}
+.controls>label{font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:4px}
+input[type=file]{font-size:14px}
+input[type=text],select{font-size:13px;padding:6px 8px;border:1px solid #d0d8e2;border-radius:6px;min-width:170px;background:#fff}
+#status{font-size:13px;color:#52606d;margin-top:10px}#status:empty{display:none}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}th,td{border:1px solid #e3e8ef;padding:7px 9px;text-align:left;vertical-align:top}th{background:#f0f4f9;position:sticky;top:0;z-index:1}td.num,th.num{text-align:right}
+tr.sub td{background:#f7faff;font-weight:600}
+.hint{font-size:12px;color:#7b8794}
+button{background:#1a73e8;color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+button.secondary{background:#eef2f7;color:#1f2933;border:1px solid #d0d8e2;font-weight:400}
+button.small{padding:4px 10px;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.ms{position:relative}.ms-btn{background:#fff;color:#1f2933;border:1px solid #d0d8e2;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:400;cursor:pointer;min-width:240px;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:8px}.ms-btn .caret{color:#7b8794}
+.ms-panel{display:none;position:absolute;z-index:50;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #d0d8e2;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);width:470px;max-height:360px;overflow:auto;padding:8px}.ms-panel.open{display:block}
+.ms-actions{display:flex;gap:14px;padding:4px 8px 8px;border-bottom:1px solid #eef2f7;margin-bottom:6px}.ms-actions a{color:#1a73e8;font-size:12px;cursor:pointer;font-weight:600}
+.ms-search{width:100%;box-sizing:border-box;margin-bottom:6px}
+.ms-item{display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:13px;font-weight:400;border-radius:5px;cursor:pointer}.ms-item:hover{background:#f4f6f9}.ms-item input{margin:0;width:16px;height:16px}.ms-item span{flex:1;word-break:break-word}
+.hastip{position:relative}.lbl{display:flex;align-items:center;gap:5px}
+.info{width:15px;height:15px;border-radius:50%;border:1px solid #9db4d4;background:#fff;color:#3b6fb5;font-size:10px;font-weight:700;font-style:italic;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.tip{display:none;position:absolute;z-index:60;top:calc(100% + 4px);left:0;width:260px;background:#0f2747;color:#fff;padding:9px 11px;border-radius:7px;font-size:11px;font-weight:400;line-height:1.45;box-shadow:0 6px 20px rgba(0,0,0,.18)}.tip.show{display:block}
+/* view toggles */
+#viewCard{background:#f7faff;border:1px solid #d6e4fb}#viewCard h3{color:#1a4fa0}
+.tgroups{display:flex;flex-wrap:wrap;gap:16px 34px}
+.tgroup h4{margin:0 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#52606d}
+.tg-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.sw{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #d0d8e2;border-radius:20px;padding:5px 12px 5px 6px;font-size:13px;cursor:pointer;user-select:none;height:20px}
+.sw input{display:none}.sw .knob{width:28px;height:16px;border-radius:10px;background:#c9d1db;position:relative;transition:.15s;flex:0 0 auto}
+.sw .knob:after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.15s}
+.sw input:checked+.knob{background:#1a73e8}.sw input:checked+.knob:after{left:14px}
+.sw:has(input:checked){border-color:#9db4d4;background:#eaf1fb}
+.tgroup label.sel{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px}
+.tgroup select{min-width:150px}
+/* chart */
+body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+#chartCard{padding:0}
+#chartTop{position:sticky;top:0;z-index:9;display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;padding:12px 18px;font-size:12px;color:#7b8794;border-bottom:1px solid #eef1f5;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-radius:10px 10px 0 0}
+#chartTop h3{margin:0;font-size:15px;color:#1f2933}
+#chartTop .sp{flex:1}
+#zoomCtl{display:flex;align-items:center;background:#fff;border:1px solid #e3e8ef;border-radius:999px;padding:2px}
+#zoomCtl button{background:none;color:#33404f;border:none;border-radius:999px;padding:4px 11px;font-size:13px;font-weight:600}
+#zoomCtl button:hover{background:#f1f4f8}
+#zoomCtl .pct{min-width:48px;font-weight:500;color:#52606d}
+#viewport{position:relative;min-height:320px;background:#fff;overflow:hidden;cursor:grab;touch-action:pan-y;border-radius:0 0 10px 10px}
+#viewport.drag{cursor:grabbing}
+#pan{position:absolute;left:0;top:0}
+#canvas{position:relative}
+#wires{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+#wires path{fill:none;stroke:#d5dce5;stroke-width:1.5}
+.colh{position:absolute;top:8px;height:22px;display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9aa5b1;cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden;padding-left:2px}
+.colh:hover{color:#1a73e8}.colh .cnt{font-weight:500;letter-spacing:0;color:#b4bdc8}
+.nd{position:absolute;box-sizing:border-box;background:#fff;border:1px solid #e6eaf0;border-radius:10px;padding:7px 44px 7px 28px;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05);transition:box-shadow .12s,border-color .12s;user-select:none}
+.nd.compact{padding:0 44px 0 26px;display:flex;align-items:center;border-radius:8px}
+.nd:hover{border-color:#c9d6e8;box-shadow:0 4px 14px rgba(16,24,40,.08)}
+.nd .dot{position:absolute;left:13px;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:var(--c,#1a73e8)}
+.nd .t{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;line-height:18px;color:#1f2933;white-space:nowrap}
+.nd .t .tx{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nd .dup{flex:0 0 auto;font-size:11px;font-weight:600;color:#1a4fa0;background:#eaf1fb;border-radius:999px;padding:0 7px;line-height:17px}
+.nd .mt{flex:0 0 auto;font-size:11px;color:#7b8794}
+.nd .m{font-size:11.5px;line-height:16px;color:#7b8794;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.nd.b .t .tx{font-weight:600}
+.nd .tog{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:#52606d;background:#f1f4f8;border-radius:999px;padding:1px 8px;line-height:16px}
+.nd.open .tog{background:transparent;color:#9aa5b1}
+.nd.off{background:#fafbfc}.nd.off .t,.nd.off .m{color:#a7b1bd}.nd.off .dot{background:#cfd6df}.nd.off .dup{background:#f1f4f8;color:#9aa5b1}
+.nd.sel{border-color:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.18)}
+.nd.kwsum{background:#f8fbff;border-color:#dce8f8}.nd.kwsum .t{color:#1a4fa0}
+.nd.more{border-style:dashed}.nd.more .t{color:#1a73e8;font-weight:600}
+.nd .bar{position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:#eef1f5;overflow:hidden}
+.nd .bar i{display:block;height:100%;background:var(--c,#1a73e8);opacity:.55}
+/* detail drawer */
+#detail{position:fixed;top:16px;right:16px;bottom:16px;width:400px;max-width:calc(100vw - 48px);z-index:40;background:#fff;border:1px solid #e6eaf0;border-radius:14px;box-shadow:0 18px 50px rgba(16,24,40,.16);transform:translateX(calc(100% + 40px));transition:transform .22s ease;display:flex;flex-direction:column}
+#detail.show{transform:translateX(0)}
+#detail.show.min{transform:translateX(calc(100% + 16px))}
+#dTab{position:absolute;left:-34px;top:18px;width:34px;height:46px;background:#fff;border:1px solid #e6eaf0;border-right:none;border-radius:12px 0 0 12px;box-shadow:-6px 4px 14px rgba(16,24,40,.08);display:none;align-items:center;justify-content:center;color:#52606d;font-size:18px;cursor:pointer;padding:0}
+#detail.show #dTab{display:flex}
+#dTab:hover{color:#1a73e8}
+#dClose{position:absolute;right:10px;top:10px;background:none;color:#9aa5b1;font-size:18px;padding:2px 8px;font-weight:400}
+#dClose:hover{color:#1f2933}
+#dBody{overflow:auto;padding:18px 20px;font-size:13px;flex:1}
+#dBody h4{margin:0 0 6px;font-size:15px;word-break:break-word;padding-right:24px}
+#dBody .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:10px 0}#dBody .kv b{color:#7b8794;font-weight:500}
+#dBody ol{padding-left:22px;margin:4px 0 10px}#dBody li{margin:3px 0}
+#dBody .sec{margin-top:14px;padding-top:12px;border-top:1px solid #eef1f5}
+#dBody .sec h5{margin:0 0 8px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#7b8794;display:flex;justify-content:space-between;align-items:center}
+#dBody table{font-size:12px}#dBody td,#dBody th{padding:5px 6px;border-color:#eef1f5}#dBody th{background:#f8fafc}
+#dBody .url{word-break:break-all}#dBody a{color:#1a73e8;text-decoration:none}#dBody a:hover{text-decoration:underline}
+#kwSearch{width:100%;box-sizing:border-box;margin-bottom:8px;min-width:0}
+.crumb{font-size:11.5px;color:#7b8794;margin-bottom:6px;word-break:break-word;padding-right:24px}
+.pin{display:inline-block;font-size:10px;background:#fff4d6;border:1px solid #f0d58a;border-radius:4px;padding:0 4px;margin-left:4px;color:#7a5b00}
+.badge{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:1px 6px;margin:1px 3px 1px 0;background:#eef2f7;color:#33404f}
+.badge.E{background:#e3f1e6;color:#1a7f37}.badge.P{background:#e8effc;color:#1a4fa0}.badge.B{background:#fdeee8;color:#a3401f}
+/* tree table */
+#colToggles{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}.ck{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#33404f;cursor:pointer}.ck input{margin:0}
+#summary td{white-space:nowrap;vertical-align:top}#summary td.cn{font-weight:600}#summary td:nth-child(-n+4){white-space:normal}
+#summary.deep tr.k-campaign td{font-weight:600;background:#fbfcfe}#summary tr.k-ad td{font-size:12.5px}
+table.tt td{white-space:nowrap}table.tt td.nm{white-space:normal;min-width:170px}
+table.tt tr.lv-root td,table.tt tr.lv-group td{background:#f7faff;font-weight:600}
+table.tt tr.lv-campaign td.nm{font-weight:600}
+table.tt tr.off td{color:#9aa5b1}
+table.tt td:empty{border-left-color:transparent;border-right-color:transparent}
+/* upload help */
+.uphelp{font-size:12px;color:#52606d;line-height:1.55;max-width:560px;font-weight:400}
+.uphelp b{color:#1f2933}
+/* custom groupings */
+#cgHead{cursor:pointer;user-select:none}
+.cg-top{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;margin-bottom:12px}
+.cg-top label{font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:4px}
+.cg-rules{width:100%;font-size:13px}.cg-rules td{padding:5px 6px}.cg-rules input{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid #d0d8e2;border-radius:6px}
+.cg-x{background:none;color:#b04a3a;border:none;font-size:16px;padding:2px 8px}
+.chip{display:inline-block;background:#fff;border:1px solid #d6e4fb;border-radius:20px;padding:2px 10px;margin:2px 4px 2px 0;font-size:12px}
+#cgPreview{margin-top:12px;font-size:13px;line-height:1.6}
+#cgPreview details{margin-top:6px}#cgPreview summary{cursor:pointer;color:#1a73e8}
+#settingsCard{background:#f7faff;border:1px solid #d6e4fb}#settingsCard h3{margin:0 0 8px;font-size:14px;color:#1a4fa0}#settingsBody{font-size:13px;line-height:1.7;color:#33404f}
+#tableScroll{max-height:560px;overflow:auto}
+@media(max-width:700px){#detail{width:100%}}
+</style>
+</head>
+<body>
+<header><h1>Account Structure Tree</h1><p>See every campaign, ad group, ad and keyword in one view.</p></header>
+<div class="wrap">
+
+<div class="card"><div class="controls">
+<label>Upload files<input type="file" id="file" accept=".xlsx,.xls,.csv,.tsv,.txt" multiple><span class="uphelp">Needs 2 engine downloads: the <b>Keyword report</b> and the <b>Ad report</b> (.csv or .xlsx). Select both at once.</span></label>
+<label id="campWrap" style="display:none;">Campaigns<div class="ms"><button type="button" class="ms-btn" id="msBtn"><span id="msLabel">All campaigns</span><span class="caret">&#9662;</span></button><div class="ms-panel" id="msPanel"><input type="text" id="msSearch" class="ms-search" placeholder="Search campaigns…"><div class="ms-actions"><a id="msAll">Select all</a><a id="msNone">Clear all</a></div><div id="msList"></div></div></div></label>
+<label class="hastip"><span class="lbl">Text contains <button type="button" class="info">i</button></span><span class="tip">Filters keywords (and ad headlines/descriptions) to ones containing this text. Campaigns and ad groups with nothing left are hidden.</span><input type="text" id="containsFilter" placeholder="e.g. alimentum"></label>
+<button class="secondary" id="downloadBtn" disabled>Download</button><select id="dlType" disabled style="min-width:150px"><option value="xlsx">Excel workbook</option><option value="pdf">PDF</option><option value="png">PNG image</option></select>
+</div>
+<div id="fileList" class="hint" style="margin-top:8px"></div>
+<div id="status"></div></div>
+
+<div class="card" id="viewCard" style="display:none">
+<h3>View</h3>
+<div class="tgroups">
+ <div class="tgroup"><h4>Group campaigns by</h4><div class="tg-row">
+  <label class="sel">Level 1<select id="g1"></select></label>
+  <label class="sel">Level 2<select id="g2"></select></label>
+ </div></div>
+ <div class="tgroup"><h4>De-duplicate</h4><div class="tg-row">
+  <label class="sw" title="Merges 'Alimentum - Exact' + 'Alimentum - Phrase' into one ad group, and the same keyword across match types into one keyword with match badges."><input type="checkbox" id="tMatch"><span class="knob"></span>Match types</label>
+  <label class="sw" title="Merges campaigns that differ only by a year suffix, e.g. _AMZ and _AMZ_2026."><input type="checkbox" id="tYear"><span class="knob"></span>Year copies</label>
+  <label class="sw" title="Merges campaigns that differ only by market token, e.g. TIER 1–4 and US."><input type="checkbox" id="tMarket"><span class="knob"></span>Market tiers</label>
+ </div></div>
+ <div class="tgroup"><h4>Show</h4><div class="tg-row">
+  <label class="sw" title="Show spend, counts and match types under each card. Off = slim one-line cards."><input type="checkbox" id="tDetails" checked><span class="knob"></span>Card details</label>
+  <label class="sw"><input type="checkbox" id="tSpend" checked><span class="knob"></span>Spend</label>
+  <label class="sw"><input type="checkbox" id="tAG" checked><span class="knob"></span>Ad groups</label>
+  <label class="sw"><input type="checkbox" id="tAds" checked><span class="knob"></span>Ads</label>
+  <label class="sw"><input type="checkbox" id="tKws" checked><span class="knob"></span>Keywords</label>
+  <label class="sw"><input type="checkbox" id="tZero"><span class="knob"></span>Hide $0 spend</label>
+  <label class="sel">Status<select id="statusSel"><option value="all">All (paused greyed)</option><option value="active">Active only</option><option value="inactive">Paused / not eligible only</option></select></label>
+ </div></div>
+ <div class="tgroup"><h4>Layout</h4><div class="tg-row">
+  <label class="sel">Open columns through<select id="expandSel"><option value="1">Groups</option><option value="2" selected>Campaigns</option><option value="3">Ad groups</option><option value="4">Ads &amp; keywords</option></select></label>
+  <label class="sel hastip"><span class="lbl">Keywords in tree <button type="button" class="info">i</button></span><span class="tip">“Summary card” shows one Keywords card per ad group — click it to see the full, searchable list in the side panel. Or list the top keywords right in the tree.</span><select id="kwMode"><option value="0">Summary card (list in panel)</option><option value="5">Top 5</option><option value="10">Top 10</option><option value="25">Top 25</option><option value="all">All</option></select></label>
+  <label class="sel">Sort by<select id="sortSel"><option value="cost">Spend</option><option value="name">Name</option><option value="kws"># keywords</option></select></label>
+ </div></div>
+</div>
+</div>
+
+<div class="card" id="cgCard" style="display:none">
+<h3 id="cgHead"><span id="cgCaret">&#9656;</span> Custom groupings <span class="hint" style="font-weight:400">— define your own buckets (e.g. illness / coupon / product) and pick them in “Group campaigns by”.</span></h3>
+<div id="cgBody" style="display:none">
+ <div class="cg-top">
+  <label>Grouping<select id="cgPick"></select></label>
+  <button class="secondary small" id="cgNew">+ New grouping</button>
+  <label>Name<input type="text" id="cgName" placeholder="e.g. Campaign theme"></label>
+  <label>Match against<select id="cgField"><option value="campaign">Campaign name</option><option value="adgroup">Ad group name</option><option value="both">Campaign or ad group name</option></select></label>
+  <label>Unmatched go to<input type="text" id="cgFallback" placeholder="Other" style="min-width:120px"></label>
+ </div>
+ <table class="cg-rules"><thead><tr><th style="width:26%">Bucket name</th><th>Name contains any of (comma-separated; /regex/ ok)</th><th style="width:40px"></th></tr></thead><tbody id="cgRules"></tbody></table>
+ <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;align-items:center">
+  <button class="secondary small" id="cgAddRule">+ Add bucket</button>
+  <button id="cgSave">Save &amp; apply</button>
+  <button class="secondary small" id="cgDelete">Delete grouping</button>
+  <span style="flex:1"></span>
+  <button class="secondary small" id="cgExport">Export groupings</button>
+  <label style="display:inline-block;background:#eef2f7;border:1px solid #d0d8e2;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Import groupings<input type="file" id="cgImport" accept=".json" style="display:none"></label>
+ </div>
+ <p class="hint">Buckets are checked top to bottom; the first match wins. Matching is case-insensitive.</p>
+ <div id="cgPreview"></div>
+</div>
+</div>
+
+<div id="reportArea">
+<div class="card" id="chartCard" style="display:none">
+ <div id="chartTop"><h3>Account tree</h3><span>Click a card to open/close it · click a column title to open/close the whole column · drag to move · Ctrl/⌘ + scroll to zoom</span><span class="sp"></span><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#cfd6df;margin-right:5px"></span>Grey = paused / not eligible</span>
+  <div id="zoomCtl"><button id="zOut" title="Zoom out">−</button><button id="zReset" class="pct" title="Reset to 100%">100%</button><button id="zIn" title="Zoom in">+</button><button id="zFit" title="Fit the tree to the width">Fit</button></div></div>
+ <div id="viewport"><div id="pan"><div id="canvas"><svg id="wires"></svg><div id="colHead"></div><div id="cards"></div></div></div></div>
+</div>
+<div class="card" id="tableCard" style="display:none"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:8px"><h3 style="margin:0">Campaign summary</h3><label class="hint" style="display:flex;align-items:center;gap:8px">Show rows for<select id="tblLevel" style="min-width:150px"><option value="campaign">Campaigns</option><option value="adgroup">Campaigns + ad groups</option><option value="ad">Campaigns + ad groups + ads</option></select></label><div id="colToggles"></div><span class="hint">What you see here is what exports.</span></div><div id="tableScroll"><div id="summary"></div></div></div>
+<div class="card" id="settingsCard" style="display:none"><h3>Report settings</h3><div id="settingsBody"></div></div>
+</div>
+</div>
+<div id="detail"><button id="dTab" title="Show / hide details">›</button><button id="dClose" title="Close">×</button><div id="dBody"></div></div>
+
+<script>
+/* ============ state ============ */
+let kwRows=[],adRows=[],loadedFiles=[],reportDateRange='',campaignNames=[],selectedCampaigns=new Set();
+let expanded=new Map(),selectedId=null,lastModel=null,lastLayout=null,zoom=1,layoutNodes=[];
+let customGroups=[],cgEditId=null;
+const LS='ast_state_v1';
+const PALETTE=['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
+const fmt$=v=>'$'+(+v||0).toLocaleString(undefined,{maximumFractionDigits:2,minimumFractionDigits:2});
+const fmt$0=v=>'$'+Math.round(+v||0).toLocaleString();
+const fmtN=v=>(+v||0).toLocaleString();
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+const spendOn=()=>$('tSpend').checked;
+function setStatus(m){$('status').textContent=m}
+function debounce(fn,d){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),d)}}
+function parseNum(v){const n=parseFloat(String(v??'').replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n}
+
+/* ============ file reading ============ */
+$('file').onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  kwRows=[];adRows=[];loadedFiles=[];reportDateRange='';
+  for(const f of files){
+    try{const rows=await readFile(f);ingest(f.name,rows)}
+    catch(err){loadedFiles.push({name:f.name,kind:'error',msg:err.message})}
+  }
+  $('fileList').innerHTML=loadedFiles.map(f=>f.kind==='error'?'⚠️ '+esc(f.name)+' — '+esc(f.msg):'✓ <strong>'+f.kind+'</strong> ('+fmtN(f.count)+' rows)').join(' &nbsp;·&nbsp; ');
+  if(!kwRows.length&&!adRows.length){setStatus("Couldn't find keyword or ad rows in that upload. Expecting a Google Ads keyword report and/or ad report.");return}
+  expanded.clear();selectedId=null;
+  buildCampaignFilter();
+  $('viewCard').style.display='block';$('cgCard').style.display='block';$('chartCard').style.display='block';
+  refreshGroupSelects();renderCgEditor();render();
+};
+function readFile(f){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=()=>rej(new Error('read failed'));r.onload=ev=>{try{const buf=new Uint8Array(ev.target.result);
+  if(buf[0]===0x50&&buf[1]===0x4B){const wb=XLSX.read(buf,{type:'array'});const sh=wb.Sheets[wb.SheetNames[0]];return res(XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:''}))}
+  let enc='utf-8';if(buf[0]===0xFF&&buf[1]===0xFE)enc='utf-16le';else if(buf[0]===0xFE&&buf[1]===0xFF)enc='utf-16be';
+  res(parseDelimited(new TextDecoder(enc).decode(buf).replace(/^﻿/,'')))}catch(err){rej(err)}};r.readAsArrayBuffer(f)})}
+function parseDelimited(text){
+  const sample=text.split(/\r?\n/).slice(0,6).join('\n');
+  const delim=(sample.match(/\t/g)||[]).length>=(sample.match(/,/g)||[]).length?'\t':',';
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cell+='"';i++}else q=false}else cell+=c}
+    else if(c==='"'&&cell==='')q=true;
+    else if(c===delim){row.push(cell);cell=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell=''}
+    else cell+=c}
+  if(cell!==''||row.length){row.push(cell);rows.push(row)}
+  return rows}
+function findHeader(rows){
+  for(let i=0;i<Math.min(rows.length,30);i++){const l=rows[i].map(c=>String(c).trim().toLowerCase());
+    if(l.includes('campaign')&&l.includes('ad group'))return i}
+  return -1}
+function ingest(name,rows){
+  const hi=findHeader(rows);if(hi<0)throw new Error('no header row with Campaign + Ad group');
+  const H=rows[hi].map(c=>String(c).trim()),low=H.map(h=>h.toLowerCase()),col=n=>low.indexOf(n.toLowerCase());
+  for(let i=0;i<hi;i++){for(const c of rows[i]){const v=String(c||'').trim();if(v&&/\b20\d{2}\b/.test(v)&&/[-–]|\bto\b/i.test(v)&&!reportDateRange)reportDateRange=v}}
+  const isKw=col('keyword')>-1&&col('match type')>-1,isAd=col('ad type')>-1||col('headline 1')>-1;
+  const g=(r,n)=>{const i=col(n);return i>-1?String(r[i]??'').trim():''};
+  const valid=r=>{const rt=String(r[0]||'').trim();if(/^total/i.test(rt))return false;const c=g(r,'Campaign');return c&&c!=='--'&&!/^total/i.test(c)};
+  let count=0;
+  if(isKw){
+    for(let i=hi+1;i<rows.length;i++){const r=rows[i];if(!valid(r))continue;
+      const raw=g(r,'Keyword');if(!raw||raw==='--')continue;
+      const mt=g(r,'Match type').replace(/\s*match$/i,'');
+      const status=g(r,'Status'),reasons=g(r,'Status reasons'),kst=g(r,'Keyword status');
+      kwRows.push({type:'kw',campaign:g(r,'Campaign'),adgroup:g(r,'Ad group'),raw,norm:normKw(raw),match:mt||'Broad',
+        status,reasons,kwStatus:kst,cost:parseNum(g(r,'Cost')),maxCpc:g(r,'Max. CPC'),url:g(r,'Final URL'),
+        active:isActive(status,reasons,kst)});count++}
+    loadedFiles.push({name,kind:'Keyword report',count})}
+  else if(isAd){
+    const hl=[],ds=[];
+    for(let n=1;n<=15;n++){const t=col('Headline '+n);if(t>-1)hl.push([t,col('Headline '+n+' position')])}
+    for(let n=1;n<=5;n++){const t=col('Description '+n);if(t>-1)ds.push([t,col('Description '+n+' position')])}
+    for(let i=hi+1;i<rows.length;i++){const r=rows[i];if(!valid(r))continue;
+      const pick=arr=>arr.map(([t,p])=>({text:String(r[t]??'').trim(),pos:p>-1?String(r[p]??'').trim():''})).filter(x=>x.text&&x.text!=='--').map(x=>({text:x.text,pos:/^\d+$/.test(x.pos)?x.pos:''}));
+      let heads=pick(hl),descs=pick(ds);
+      if(!heads.length&&g(r,'Headline'))heads=[{text:g(r,'Headline'),pos:''}];
+      if(!descs.length&&g(r,'Description'))descs=[{text:g(r,'Description'),pos:''}];
+      const status=g(r,'Status'),reasons=g(r,'Status reasons'),ast=g(r,'Ad status');
+      const sig=heads.map(h=>h.text+'#'+h.pos).sort().join('|')+'||'+descs.map(d=>d.text+'#'+d.pos).sort().join('|')+'||'+g(r,'Path 1')+'/'+g(r,'Path 2');
+      adRows.push({type:'ad',campaign:g(r,'Campaign'),adgroup:g(r,'Ad group'),adType:g(r,'Ad type')||'Ad',heads,descs,
+        path1:clean(g(r,'Path 1')),path2:clean(g(r,'Path 2')),url:g(r,'Final URL'),status,reasons,adStatus:ast,
+        cost:parseNum(g(r,'Cost')),campaignType:g(r,'Campaign type'),adId:g(r,'Ad ID'),sig,active:isActive(status,reasons,ast)});count++}
+    loadedFiles.push({name,kind:'Ad report',count})}
+  else throw new Error('not a keyword or ad report (no Keyword/Match type or Ad type/Headline columns)');
+}
+function clean(v){return v==='--'?'':v}
+function isActive(status,reasons,own){return !/paused|not eligible|removed|disapproved/i.test(status)&&!/paused|removed/i.test(own||'')}
+function normKw(raw){return String(raw).trim().replace(/^\[(.*)\]$/,'$1').replace(/^"(.*)"$/,'$1').replace(/^\+/,'').replace(/\s\+/g,' ').replace(/\s+/g,' ').trim().toLowerCase()}
+function kwDisplay(norm,match){const m=match[0].toUpperCase();return m==='E'?'['+norm+']':m==='P'?'"'+norm+'"':norm}
+
+/* ============ campaign name parsing ============ */
+const parseCache=new Map();
+function parseCampaign(name){
+  if(parseCache.has(name))return parseCache.get(name);
+  const tok=name.split('_').map(s=>s.trim());
+  let si=tok.findIndex((t,i)=>i>0&&/^(non[- ]?brand|brand|unbranded|compet\w*|conquest\w*)\b/i.test(t));
+  let p={brand:tok[0]||'(none)',market:'(none)',segment:'(unclassified)',theme:'(unclassified)',channel:'(none)',year:'No year',si,tok};
+  const yi=tok.length>1&&/^(19|20)\d\d$/.test(tok[tok.length-1])?tok.length-1:-1;
+  if(yi>-1)p.year=tok[yi];
+  if(si>-1){const s=tok[si];
+    p.segment=/^non/i.test(s)||/^unbranded/i.test(s)?'Non-Brand':/^brand/i.test(s)?'Brand':'Competitive';
+    if(si>1)p.market=tok.slice(1,si).join('_');
+    const dash=s.match(/^[^-]+-\s*(.+)$/);
+    const rest=tok.slice(si+1,yi>-1?yi:tok.length);
+    if(dash){p.theme=dash[1];p.channel=rest[0]||'(none)'}
+    else{p.theme=rest[0]||'(none)';p.channel=rest[1]||'(none)'}}
+  parseCache.set(name,p);return p}
+function campaignKey(name){
+  const p=parseCampaign(name);let tok=p.tok.slice();
+  if($('tYear').checked&&p.year!=='No year')tok=tok.slice(0,-1);
+  if($('tMarket').checked&&p.si>1)tok=[tok[0],'*',...tok.slice(p.si)];
+  return tok.join('_')}
+const MATCH_RX=/\s*[-–_|:]?\s*[\(\[]?\s*(exact|phrase|broad|bmm|modified broad)(\s*[\/&+,]\s*(exact|phrase|broad|bmm))*\s*[\)\]]?\s*$/i;
+function adgroupKey(name){return $('tMatch').checked?(name.replace(MATCH_RX,'').trim()||name):name}
+
+/* ============ dimensions ============ */
+const BUILTIN=[['brand','Brand'],['segment','Brand vs Non-brand vs Competitive'],['theme','Theme (from campaign name)'],['market','Market / tier'],['year','Year'],['channel','Channel / destination']];
+function dimValue(dim,row){
+  if(!dim)return null;
+  if(dim.startsWith('cg:')){const g=customGroups.find(x=>x.id===dim.slice(3));return g?applyGrouping(g,row):null}
+  return parseCampaign(row.campaign)[dim]}
+function dimLabel(dim){if(!dim)return '';if(dim.startsWith('cg:')){const g=customGroups.find(x=>x.id===dim.slice(3));return g?g.name:''}return (BUILTIN.find(b=>b[0]===dim)||[0,dim])[1]}
+function termMatch(term,text){term=term.trim();if(!term)return false;const m=term.match(/^\/(.+)\/([a-z]*)$/i);if(m){try{return new RegExp(m[1],m[2].includes('i')?m[2]:m[2]+'i').test(text)}catch{return false}}return text.toLowerCase().includes(term.toLowerCase())}
+function applyGrouping(g,row){
+  const texts=g.field==='campaign'?[row.campaign]:g.field==='adgroup'?[row.adgroup]:[row.campaign,row.adgroup];
+  for(const r of g.rules){if(!r.label)continue;const terms=String(r.terms||'').split(',');if(terms.some(t=>texts.some(x=>termMatch(t,x))))return r.label}
+  return g.fallback||'Other'}
+function refreshGroupSelects(){
+  ['g1','g2'].forEach(id=>{const s=$(id),cur=s.value;s.innerHTML='';s.append(new Option('(none)',''));
+    const og1=document.createElement('optgroup');og1.label='From campaign names';BUILTIN.forEach(([v,l])=>og1.append(new Option(l,v)));s.append(og1);
+    const og2=document.createElement('optgroup');og2.label='Custom groupings';customGroups.forEach(g=>og2.append(new Option(g.name,'cg:'+g.id)));
+    og2.append(new Option('+ Build a custom grouping…','__new'));s.append(og2);
+    if([...s.options].some(o=>o.value===cur))s.value=cur});
+}
+['g1','g2'].forEach(id=>$(id).onchange=()=>{if($(id).value==='__new'){$(id).value='';openCg(true);newGrouping();return}expanded.clear();saveState();render()});
+
+/* ============ campaign filter ============ */
+function buildCampaignFilter(){
+  campaignNames=[...new Set([...kwRows,...adRows].map(r=>r.campaign))].sort((a,b)=>a.localeCompare(b));
+  selectedCampaigns=new Set(campaignNames);$('msList').innerHTML='';
+  campaignNames.forEach(c=>{const row=document.createElement('label');row.className='ms-item';const cb=document.createElement('input');cb.type='checkbox';cb.checked=true;cb.value=c;
+    cb.onchange=()=>{cb.checked?selectedCampaigns.add(c):selectedCampaigns.delete(c);render()};const sp=document.createElement('span');sp.textContent=c;row.append(cb,sp);$('msList').append(row)});
+  $('campWrap').style.display='flex';updateMsLabel()}
+function updateMsLabel(){const n=selectedCampaigns.size,t=campaignNames.length;$('msLabel').textContent=n===t?'All campaigns ('+t+')':n===0?'None selected':n+' of '+t+' selected'}
+$('msBtn').onclick=e=>{e.stopPropagation();$('msPanel').classList.toggle('open')};
+document.addEventListener('click',e=>{if(!e.target.closest('.ms'))$('msPanel').classList.remove('open');if(!e.target.closest('.hastip'))document.querySelectorAll('.tip.show').forEach(t=>t.classList.remove('show'))});
+$('msAll').onclick=()=>{campaignNames.forEach(c=>selectedCampaigns.add(c));syncChecks();render()};
+$('msNone').onclick=()=>{selectedCampaigns.clear();syncChecks();render()};
+$('msSearch').oninput=()=>{const q=$('msSearch').value.trim().toLowerCase();document.querySelectorAll('#msList .ms-item').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q)?'flex':'none')};
+function syncChecks(){document.querySelectorAll('#msList input').forEach(cb=>cb.checked=selectedCampaigns.has(cb.value))}
+document.querySelectorAll('.info').forEach(b=>b.onclick=e=>{e.stopPropagation();e.preventDefault();b.closest('label').querySelector('.tip').classList.toggle('show')});
+
+/* ============ build model ============ */
+const RANK={root:0,group:1,campaign:2,adgroup:3};
+function newNode(id,name,level){return{id,key:name,name,level,kids:new Map(),cost:0,kwRows:0,adRows:0,kwSet:new Set(),matchSet:new Set(),campSet:new Set(),agSet:new Set(),act:0,tot:0,rows:[]}}
+function touch(n,row,addCost){
+  if(addCost)n.cost+=row.cost;
+  if(row.type==='kw'){n.kwRows++;n.kwSet.add(row.norm);n.matchSet.add(row.match)}else n.adRows++;
+  n.campSet.add(row.campaign);n.agSet.add(row.campaign+'\u0001'+row.adgroup);n.tot++;if(row.active)n.act++}
+function child(parent,key,level,name){let c=parent.kids.get(key);if(!c){c=newNode(parent.id+'›'+key,name??key,level);parent.kids.set(key,c)}return c}
+function rowPasses(r){
+  if(!selectedCampaigns.has(r.campaign))return false;
+  const st=$('statusSel').value;if(st==='active'&&!r.active)return false;if(st==='inactive'&&r.active)return false;
+  const q=$('containsFilter').value.trim().toLowerCase();
+  if(q){if(r.type==='kw'){if(!r.norm.includes(q))return false}else{if(![...r.heads,...r.descs].some(x=>x.text.toLowerCase().includes(q)))return false}}
+  return true}
+function buildModel(){
+  const dims=[$('g1').value,$('g2').value].filter(d=>d&&d!=='__new');
+  const mergeM=$('tMatch').checked,kwCost=kwRows.length>0;
+  const root=newNode('root','Account','root');
+  const add=row=>{
+    const isKw=row.type==='kw',costUp=isKw||!kwCost;
+    const path=[root];let p=root;
+    dims.forEach((d,i)=>{const v=dimValue(d,row)??'(none)';p=child(p,'g'+i+':'+v,'group',v);p.dim=d;path.push(p)});
+    const ck=campaignKey(row.campaign);p=child(p,'c:'+ck,'campaign',ck);path.push(p);
+    const ak=showAG()?adgroupKey(row.adgroup):'__all';p=child(p,'a:'+ak,'adgroup',ak);path.push(p);
+    path.forEach(n=>touch(n,row,costUp));
+    const lk=isKw?('k:'+row.norm+(mergeM?'':'|'+row.match)):('d:'+row.sig);
+    const leaf=child(p,lk,isKw?'kw':'ad',isKw?row.norm:adTitle(row));
+    touch(leaf,row,true);leaf.rows.push(row)};
+  kwRows.forEach(r=>{if(rowPasses(r))add(r)});
+  adRows.forEach(r=>{if(rowPasses(r))add(r)});
+  if($('tZero').checked)prune(root);
+  recompute(root,kwCost);
+  return{root,dims}}
+// rebuild every count from the leaves actually in the tree, so cards, panel and table always agree
+function recompute(n,kwCost){
+  if(n.level==='kw'){n.kwLeafN=1;n.adLeafN=0;return}
+  if(n.level==='ad'){n.kwLeafN=0;n.adLeafN=1;return}
+  Object.assign(n,{cost:0,kwRows:0,adRows:0,kwSet:new Set(),matchSet:new Set(),campSet:new Set(),agSet:new Set(),act:0,tot:0,kwLeafN:0,adLeafN:0});
+  for(const c of n.kids.values()){recompute(c,kwCost);
+    if(!(c.level==='ad'&&kwCost))n.cost+=c.cost;
+    n.kwRows+=c.kwRows;n.adRows+=c.adRows;n.act+=c.act;n.tot+=c.tot;n.kwLeafN+=c.kwLeafN;n.adLeafN+=c.adLeafN;
+    c.kwSet.forEach(x=>n.kwSet.add(x));c.matchSet.forEach(x=>n.matchSet.add(x));c.campSet.forEach(x=>n.campSet.add(x));c.agSet.forEach(x=>n.agSet.add(x))}}
+function prune(n){for(const[k,c]of n.kids){prune(c);if(c.level!=='ad'&&c.cost<=0)n.kids.delete(k)}}
+function adTitle(r){const pinned=r.heads.find(h=>h.pos==='1');const h1=(pinned||r.heads[0]||{text:'(no headline)'}).text;const h2=r.heads.find(h=>h!==(pinned||r.heads[0]));return h1+(h2?' | '+h2.text:'')}
+
+/* ============ naming helpers ============ */
+function agNames(n){return new Set([...n.agSet].map(x=>x.split('\u0001')[1]))}
+function displayName(n){
+  if(n.level==='campaign'){if(n.campSet.size===1)return [...n.campSet][0];return n.key}
+  if(n.level==='adgroup'){if(n.key==='__all')return 'All ad groups';const a=agNames(n);if(a.size===1)return [...a][0];return n.key}
+  if(n.level==='kw'){const ms=[...n.matchSet];return ms.length===1?kwDisplay(n.key,ms[0]):n.key}
+  if(n.level==='root')return 'Account';
+  return n.name}
+const MORDER=['Exact','Phrase','Broad'];
+function matchTypes(set){return [...set].sort((a,b)=>MORDER.indexOf(a)-MORDER.indexOf(b)).join(', ')}
+const matchBadges=matchTypes;
+function badgeHTML(set){return [...set].sort((a,b)=>MORDER.indexOf(a)-MORDER.indexOf(b)).map(m=>'<span class="badge '+m[0]+'">'+m+'</span>').join('')}
+function statusOf(n){return n.act===0?'Paused':n.act===n.tot?'Active':'Partly active'}
+function kwLeaves(n){return [...n.kids.values()].filter(c=>c.level==='kw')}
+function adLeaves(n){return [...n.kids.values()].filter(c=>c.level==='ad')}
+function uniqKw(n){return n.kwSet.size}
+function kwCount(n){return n.kwLeafN||0}
+
+/* ============ sorting / visibility ============ */
+const showAG=()=>$('tAG').checked,showDetails=()=>$('tDetails').checked;
+function sortKids(arr){const s=$('sortSel').value;return arr.sort((a,b)=>{
+  if(a.level!==b.level)return a.level==='ad'?-1:1;
+  if(s==='name')return displayName(a).localeCompare(displayName(b));
+  if(s==='kws')return(kwCount(b)-kwCount(a))||(b.cost-a.cost);
+  return(b.cost-a.cost)||displayName(a).localeCompare(displayName(b))})}
+function adItems(n){return $('tAds').checked?sortKids(adLeaves(n)):[]}
+function kwItems(n){
+  if(!$('tKws').checked||!kwCount(n))return [];
+  const mode=$('kwMode').value;
+  if(mode==='0')return [{synthetic:true,level:'kwsum',id:n.id+'›#kw',parent:n}];
+  const kws=sortKids(kwLeaves(n)),lim=mode==='all'?kws.length:+mode,out=kws.slice(0,lim);
+  if(kws.length>lim)out.push({synthetic:true,level:'more',id:n.id+'›#more',parent:n,extra:kws.length-lim});
+  return out}
+function isOpen(n){if(expanded.has(n.id))return expanded.get(n.id);let r=RANK[n.level];if(!showAG()&&n.level==='campaign')r=Math.max(r,3);return r<+$('expandSel').value}
+
+/* ============ layout: left → right, one column per layer ============ */
+const GAP=56,TOP=40;
+const dimsCard=()=>showDetails()?{H:50,ROW:66}:{H:32,ROW:42};
+function colSpec(dims){
+  const cols=[{label:'Account',w:210,key:'root'}];
+  dims.forEach(d=>cols.push({label:dimLabel(d),w:250,key:'group'}));
+  cols.push({label:'Campaign',w:410,key:'campaign'});
+  if(showAG())cols.push({label:'Ad group',w:290,key:'adgroup'});
+  if($('tAds').checked)cols.push({label:'Ads',w:300,key:'ads'});
+  if($('tKws').checked)cols.push({label:'Keywords',w:280,key:'kws'});
+  let x=0;cols.forEach(c=>{c.x=x;x+=c.w+GAP});return cols}
+function layout(model){
+  const {H,ROW}=dimsCard(),cols=colSpec(model.dims),ci=k=>cols.findIndex(c=>c.key===k);
+  const adsCol=ci('ads'),kwCol=ci('kws'),nodes=[];let row=0;
+  const mk=(n,col,r,color)=>{const it={n,col,row:r,color,kids:0,open:false,children:[],ads:[],kws:[]};nodes.push(it);return it};
+  (function place(n,col,color){
+    const it=mk(n,col,row,color);
+    const lp=n.level==='adgroup'?n:(n.level==='campaign'&&!showAG()?[...n.kids.values()][0]:null);
+    if(lp){
+      const A=adItems(lp),K=kwItems(lp);it.kids=A.length+K.length;it.open=it.kids>0&&isOpen(n);
+      if(it.open){const r0=row;
+        A.forEach((a,i)=>it.ads.push(mk(a,adsCol,r0+i,color)));
+        K.forEach((k,i)=>it.kws.push(mk(k,kwCol,r0+i,color)));
+        row=r0+Math.max(A.length,K.length,1)-1}
+      return it}
+    const kids=sortKids([...n.kids.values()]);it.kids=kids.length;it.open=kids.length>0&&isOpen(n);
+    if(it.open)kids.forEach((k,i)=>{if(i>0)row++;it.children.push(place(k,col+1,col===0?PALETTE[i%PALETTE.length]:color))});
+    return it})(model.root,0,'#1a73e8');
+  nodes.forEach(it=>{const c=cols[it.col];it.x=c.x;it.w=c.w;it.y=TOP+it.row*ROW});
+  const last=cols[cols.length-1];
+  return{cols,nodes,H,ROW,width:last.x+last.w,height:TOP+(row+1)*ROW}}
+
+/* ============ card text ============ */
+function pctOf(n,total){if(!total)return '';const p=n.cost/total*100;return ' ('+(p>0&&p<1?p.toFixed(1):p.toFixed(0))+'%)'}
+function dupTag(n){
+  if(n.synthetic)return '';
+  if(n.level==='campaign'&&n.campSet.size>1)return '×'+n.campSet.size;
+  if(n.level==='adgroup'&&n.key!=='__all'){const a=agNames(n).size;if(a>1)return '×'+a}
+  if((n.level==='ad'||n.level==='kw')&&n.rows.length>1)return '×'+n.rows.length;
+  return ''}
+const plural=(k,w)=>fmtN(k)+' '+w+(k===1?'':'s');
+function cardText(n,total){
+  const sp=spendOn(),join=a=>a.filter(Boolean).join(' · ');
+  if(n.synthetic){const ag=n.parent;
+    if(n.level==='kwsum')return{t:plural(kwCount(ag),'keyword'),m:join([matchTypes(ag.matchSet),'view list →'])};
+    return{t:'+ '+fmtN(n.extra)+' more',m:'view all in the side panel →'}}
+  const S=sp?fmt$0(n.cost):'';
+  switch(n.level){
+    case 'root':return{t:'Account',m:join([S,plural(n.campSet.size,'campaign')])};
+    case 'group':return{t:n.name,m:join([sp&&S+pctOf(n,total),plural(n.campSet.size,'campaign')])};
+    case 'campaign':return{t:displayName(n),m:join([sp&&S+pctOf(n,total),showAG()&&plural(n.kids.size,'ad group'),kwCount(n)&&plural(kwCount(n),'keyword')])};
+    case 'adgroup':return{t:displayName(n),m:join([S,kwCount(n)&&plural(kwCount(n),'keyword'),n.adLeafN&&plural(n.adLeafN,'ad'),matchTypes(n.matchSet)])};
+    case 'ad':{const r=n.rows[0];return{t:n.name,m:join([S,'RSA · '+r.heads.length+' headlines · '+r.descs.length+' desc.'])}}
+    case 'kw':return{t:n.key,m:join([S,matchTypes(n.matchSet)])};
+  }return{t:n.name||'',m:''}}
+
+/* ============ render ============ */
+function render(){
+  updateMsLabel();
+  if(!kwRows.length&&!adRows.length)return;
+  if(!selectedCampaigns.size){$('cards').innerHTML='';$('wires').innerHTML='';$('colHead').innerHTML='';setStatus('Select at least one campaign.');return}
+  const model=buildModel();lastModel=model;
+  const root=model.root,total=root.cost;
+  if(!root.kids.size){$('cards').innerHTML='<p class="hint" style="padding:16px">Nothing matches the current filters.</p>';$('wires').innerHTML='';$('colHead').innerHTML='';$('tableCard').style.display='none';setStatus('Nothing matches the current filters.');return}
+  drawTree(model);drawSettings(model);refreshDetail();
+  $('downloadBtn').disabled=false;$('dlType').disabled=false;
+  setStatus('');
+  saveState()}
+function rpath(pts,r){
+  pts=pts.filter((p,i)=>i===0||p[0]!==pts[i-1][0]||p[1]!==pts[i-1][1]);
+  let d='M'+pts[0][0]+' '+pts[0][1];
+  for(let i=1;i<pts.length-1;i++){const[x0,y0]=pts[i-1],[x1,y1]=pts[i],[x2,y2]=pts[i+1];
+    const d1=Math.hypot(x1-x0,y1-y0),d2=Math.hypot(x2-x1,y2-y1),rr=Math.min(r,d1/2,d2/2);
+    if(rr<.5){d+=' L'+x1+' '+y1;continue}
+    d+=' L'+(x1-(x1-x0)/d1*rr)+' '+(y1-(y1-y0)/d1*rr)+' Q'+x1+' '+y1+' '+(x1+(x2-x1)/d2*rr)+' '+(y1+(y2-y1)/d2*rr)}
+  const l=pts[pts.length-1];return d+' L'+l[0]+' '+l[1]}
+function drawTree(model){
+  const L=layout(model),total=model.root.cost,CARD_H=L.H,det=showDetails();layoutNodes=L.nodes;lastLayout=L;
+  const maxBy={};L.nodes.forEach(it=>{if(!it.n.synthetic)maxBy[it.col]=Math.max(maxBy[it.col]||0,it.n.cost)});
+  const html=[];
+  L.nodes.forEach(it=>{
+    const n=it.n,{t,m}=cardText(n,total),sp=spendOn(),tag=dupTag(n);
+    const cls=['nd',n.level];if(['root','group','campaign'].includes(n.level))cls.push('b');if(!det)cls.push('compact');
+    if(!n.synthetic&&n.act===0)cls.push('off');if(it.open)cls.push('open');
+    if(n.id===selectedId&&$('detail').classList.contains('show'))cls.push('sel');
+    const tog=it.kids?(it.open?'▾':'▸ '+it.kids):'';
+    const share=!n.synthetic&&maxBy[it.col]>0?n.cost/maxBy[it.col]:0;
+    const ds=n.synthetic?6:sp?Math.round(6+Math.sqrt(share)*(det?8:4)):8;
+    const bar=det&&sp&&share>0?'<div class="bar"><i style="width:'+Math.max(3,share*100).toFixed(1)+'%"></i></div>':'';
+    const inlineMt=!det&&n.level==='kw'?'<span class="mt">'+esc(matchTypes(n.matchSet))+'</span>':'';
+    const title=n.synthetic?'':(n.level==='campaign'&&n.campSet.size>1?n.key+'\n'+[...n.campSet].join('\n'):displayName(n));
+    html.push('<div class="'+cls.join(' ')+'" data-id="'+esc(n.id)+'" title="'+esc(title)+'" style="left:'+it.x+'px;top:'+it.y+'px;width:'+it.w+'px;height:'+CARD_H+'px;--c:'+it.color+'"><span class="dot" style="width:'+ds+'px;height:'+ds+'px"></span><div class="t"><span class="tx">'+esc(t)+'</span>'+(tag?'<span class="dup" title="Duplicates merged into this card">'+tag+'</span>':'')+inlineMt+'</div>'+(det?'<div class="m">'+esc(m)+'</div>':'')+(tog?'<span class="tog">'+tog+'</span>':'')+bar+'</div>')});
+  $('cards').innerHTML=html.join('');
+  // connectors: rounded elbows; ad group → ad → keywords reads as one straight line
+  const P=[],mid=it=>it.y+CARD_H/2,R=10;
+  L.nodes.forEach(it=>{
+    const px=it.x+it.w,py=mid(it);
+    if(it.children.length){const tx=it.children[0].x-GAP/2;it.children.forEach(c=>P.push(rpath([[px,py],[tx,py],[tx,mid(c)],[c.x,mid(c)]],R)))}
+    if(it.ads.length){const tx=it.ads[0].x-GAP/2;it.ads.forEach(c=>P.push(rpath([[px,py],[tx,py],[tx,mid(c)],[c.x,mid(c)]],R)))}
+    if(it.kws.length){const kx=it.kws[0].x-GAP/2,sx=it.ads.length?it.ads[0].x+it.ads[0].w:px;
+      it.kws.forEach(c=>P.push(rpath([[sx,py],[kx,py],[kx,mid(c)],[c.x,mid(c)]],R)))}});
+  const w=$('wires');w.setAttribute('width',L.width);w.setAttribute('height',L.height);w.innerHTML='<path d="'+P.join(' ')+'"/>';
+  $('canvas').style.width=L.width+'px';$('canvas').style.height=L.height+'px';
+  const counts={};L.nodes.forEach(it=>counts[it.col]=(counts[it.col]||0)+1);
+  $('colHead').innerHTML=L.cols.map((c,i)=>'<div class="colh" data-col="'+i+'" style="left:'+c.x+'px;width:'+c.w+'px" title="Click to open/close every card in this column">'+esc(c.label)+(counts[i]?'<span class="cnt">'+fmtN(counts[i])+'</span>':'')+'</div>').join('');
+  applyView();drawSummary(model)}
+
+/* ============ pan + zoom (CSS zoom keeps text crisp) ============ */
+let view={k:1,x:24,y:8},dragInfo=null,suppressClick=false;
+function applyView(){
+  view.x=Math.round(view.x);view.y=Math.round(view.y);
+  $('pan').style.left=view.x+'px';$('pan').style.top=view.y+'px';$('canvas').style.zoom=view.k;
+  if(lastLayout)vp.style.height=Math.max(320,Math.ceil(lastLayout.height*view.k)+40)+'px';
+  $('zReset').textContent=Math.round(view.k*100)+'%'}
+function zoomAt(k,cx,cy){k=Math.max(.2,Math.min(2,+k.toFixed(3)));view.x=cx-(cx-view.x)*k/view.k;view.y=cy-(cy-view.y)*k/view.k;view.k=k;if(view.y>8)view.y=8;applyView()}
+const vp=$('viewport');
+vp.addEventListener('wheel',e=>{
+  if(e.ctrlKey||e.metaKey){e.preventDefault();const r=vp.getBoundingClientRect();zoomAt(view.k*Math.exp(-e.deltaY*(e.ctrlKey&&!e.metaKey&&Math.abs(e.deltaY)<20?.01:.0015)),e.clientX-r.left,e.clientY-r.top);return}
+  const dx=e.shiftKey?e.deltaY:e.deltaX;
+  if(Math.abs(dx)>Math.abs(e.shiftKey?0:e.deltaY)){e.preventDefault();view.x-=dx;applyView()}  // horizontal = pan; vertical = normal page scroll
+},{passive:false});
+vp.addEventListener('pointerdown',e=>{suppressClick=false;if(e.button!==0)return;dragInfo={sx:e.clientX,sy:e.clientY,x:view.x,y:view.y,moved:false}});
+window.addEventListener('pointermove',e=>{if(!dragInfo)return;const dx=e.clientX-dragInfo.sx,dy=e.clientY-dragInfo.sy;if(!dragInfo.moved&&Math.hypot(dx,dy)<4)return;dragInfo.moved=true;vp.classList.add('drag');view.x=dragInfo.x+dx;view.y=dragInfo.y+dy;applyView()});
+window.addEventListener('pointerup',()=>{suppressClick=!!(dragInfo&&dragInfo.moved);dragInfo=null;vp.classList.remove('drag')});
+const vpCenter=()=>{const r=vp.getBoundingClientRect();return[r.width/2,Math.min(r.height/2,200)]};
+$('zIn').onclick=()=>zoomAt(view.k*1.2,...vpCenter());
+$('zOut').onclick=()=>zoomAt(view.k/1.2,...vpCenter());
+$('zReset').onclick=()=>{view={k:1,x:24,y:8};applyView()};
+$('zFit').onclick=()=>{if(!lastLayout)return;const r=vp.getBoundingClientRect();view={k:Math.max(.2,Math.min(1,(r.width-48)/lastLayout.width)),x:24,y:8};applyView()};
+
+/* ============ clicks ============ */
+$('cards').addEventListener('click',e=>{
+  if(suppressClick)return;
+  const el=e.target.closest('.nd');if(!el)return;const id=el.dataset.id;
+  const it=layoutNodes.find(x=>x.n.id===id);if(!it)return;
+  const lv=it.n.level;
+  if(lv==='ad'||lv==='kw'||lv==='kwsum'||lv==='more'){selectedId=id;openDetail();drawTree(lastModel);return}
+  if(it.kids){expanded.set(id,!it.open);render()}});
+$('colHead').addEventListener('click',e=>{
+  if(suppressClick)return;
+  const h=e.target.closest('.colh');if(!h)return;const c=+h.dataset.col;
+  const inCol=layoutNodes.filter(it=>it.col===c&&it.kids);if(!inCol.length)return;
+  const anyClosed=inCol.some(it=>!it.open);inCol.forEach(it=>expanded.set(it.n.id,anyClosed));render()});
+
+/* ============ detail drawer (ads + keywords only) ============ */
+function findNode(n,id){if(n.id===id)return n;for(const c of n.kids.values()){if(id===c.id||id.startsWith(c.id+'›')){const f=findNode(c,id);if(f)return f}}return null}
+function pathTo(root,id){const out=[];(function walk(n){if(n.id===id)return true;for(const c of n.kids.values()){if(id===c.id||id.startsWith(c.id+'›')){out.push(c);if(walk(c))return true}}return false})(root);return out}
+$('dTab').onclick=()=>{$('detail').classList.toggle('min');$('dTab').textContent=$('detail').classList.contains('min')?'‹':'›'};
+$('dClose').onclick=()=>{$('detail').classList.remove('show','min');selectedId=null;drawTree(lastModel)};
+function openDetail(){$('detail').classList.add('show');$('detail').classList.remove('min');$('dTab').textContent='›';showDetail()}
+function refreshDetail(){if($('detail').classList.contains('show'))showDetail()}
+const urlLink=u=>{const clean=(u||'').split('?')[0];return /^https?:\/\//i.test(clean)?'<a href="'+esc(clean)+'" target="_blank" rel="noopener noreferrer">'+esc(clean)+' ↗</a>':esc(clean)};
+let kwPanelList=[],lastDetailKey=null;
+function showDetail(){
+  const model=lastModel,body=$('dBody');if(!model||!selectedId)return;
+  const synth=/›#(kw|more)$/.test(selectedId),baseId=synth?selectedId.replace(/›#(kw|more)$/,''):selectedId;
+  const n=findNode(model.root,baseId);
+  if(!n){body.innerHTML='<p class="hint">That item isn’t in the current view.</p>';return}
+  const sp=spendOn(),path=pathTo(model.root,baseId);
+  const camp=path.find(x=>x.level==='campaign'),ag=path.find(x=>x.level==='adgroup');
+  const crumb='<div class="crumb">'+[camp&&displayName(camp),ag&&ag!==n&&displayName(ag)].filter(Boolean).map(esc).join(' › ')+'</div>';
+  const kv=pairs=>'<div class="kv">'+pairs.filter(Boolean).map(([k,v])=>'<b>'+k+'</b><span>'+v+'</span>').join('')+'</div>';
+  const statusTxt=n.act===0?'<span style="color:#b04a3a">Paused / not eligible</span>':n.act===n.tot?'<span style="color:#1a7f37">Active</span>':'<span style="color:#a36b00">Partly active ('+fmtN(n.act)+' of '+fmtN(n.tot)+')</span>';
+  let h='';kwPanelList=[];
+  if(n.level==='kw'){
+    h=crumb+'<h4>'+esc(n.key)+'</h4>'+badgeHTML(n.matchSet);
+    h+=kv([sp&&['Spend',fmt$(n.cost)],['Status',statusTxt],['Appears',plural(n.rows.length,'time')]]);
+    h+='<table><thead><tr><th>Campaign / ad group</th><th>Match type</th>'+(sp?'<th class="num">Spend</th>':'')+'</tr></thead><tbody>'+n.rows.slice(0,200).map(r=>'<tr style="'+(r.active?'':'color:#8a97a6')+'"><td>'+esc(r.campaign)+'<br><span class="hint">'+esc(r.adgroup)+' · '+esc(r.status)+(r.reasons?' ('+esc(r.reasons)+')':'')+'</span></td><td>'+esc(r.match)+'</td>'+(sp?'<td class="num">'+fmt$(r.cost)+'</td>':'')+'</tr>').join('')+'</tbody></table>';
+    if(n.rows[0]&&n.rows[0].url)h+='<p class="hint url">Final URL: '+urlLink(n.rows[0].url)+'</p>';
+  }else if(n.level==='ad'){
+    const r=n.rows[0];
+    h=crumb+'<h4>'+esc(r.adType)+'</h4>'+kv([sp&&['Spend',fmt$(n.cost)],['Status',statusTxt],['Copies',n.rows.length],['Display path',esc([r.path1,r.path2].filter(Boolean).join('/')||'—')],r.url&&['Final URL','<span class="url">'+urlLink(r.url)+'</span>']]);
+    h+='<div class="sec"><h5>Headlines ('+r.heads.length+')</h5><ol>'+r.heads.map(x=>'<li>'+esc(x.text)+(x.pos?'<span class="pin">pin '+x.pos+'</span>':'')+' <span class="hint">'+x.text.length+'</span></li>').join('')+'</ol></div>';
+    h+='<div class="sec"><h5>Descriptions ('+r.descs.length+')</h5><ol>'+r.descs.map(x=>'<li>'+esc(x.text)+(x.pos?'<span class="pin">pin '+x.pos+'</span>':'')+' <span class="hint">'+x.text.length+'</span></li>').join('')+'</ol></div>';
+    h+='<div class="sec"><h5>Runs in</h5><ul style="padding-left:18px;margin:4px 0">'+n.rows.slice(0,60).map(x=>'<li style="'+(x.active?'':'color:#8a97a6')+'">'+esc(x.campaign)+' › '+esc(x.adgroup)+(sp?' — '+fmt$(x.cost):'')+'</li>').join('')+'</ul></div>';
+  }else{ // ad group (or campaign-wide) keyword list
+    const kc=kwCount(n),uq=uniqKw(n);
+    h=crumb+'<h4>'+esc(displayName(n))+'</h4><span class="hint">'+(n.key==='__all'?'All keywords in this campaign':'Ad group keywords')+'</span>';
+    h+=kv([sp&&['Spend',fmt$(n.cost)],['Status',statusTxt],['Keywords',fmtN(kc)+(uq!==kc?' ('+fmtN(uq)+' unique texts — same text in more than one match type)':'')],n.matchSet.size&&['Match types',badgeHTML(n.matchSet)]]);
+    kwPanelList=kwLeaves(n).map(leaf=>({leaf}));
+    const s=$('sortSel').value;kwPanelList.sort((a,b)=>s==='name'?a.leaf.key.localeCompare(b.leaf.key):(b.leaf.cost-a.leaf.cost)||a.leaf.key.localeCompare(b.leaf.key));
+    h+='<div class="sec"><h5><span>Keyword list</span><button class="secondary small" id="kwCopy" title="Copy the listed keywords">Copy</button></h5><input type="text" id="kwSearch" placeholder="Search these keywords…"><div id="kwList"></div></div>';
+  }
+  const keepQ=$('kwSearch')&&lastDetailKey===baseId?$('kwSearch').value:'';lastDetailKey=baseId;
+  body.innerHTML=h;body.scrollTop=0;
+  if($('kwSearch')){$('kwSearch').value=keepQ;$('kwSearch').oninput=debounce(drawKwList,150);
+    $('kwCopy').onclick=()=>{const t=filteredKw().map(x=>x.leaf.key).join('\n');if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>{$('kwCopy').textContent='Copied';setTimeout(()=>{if($('kwCopy'))$('kwCopy').textContent='Copy'},1200)})};
+    drawKwList()}}
+function filteredKw(){const q=($('kwSearch')?.value||'').trim().toLowerCase();return q?kwPanelList.filter(x=>x.leaf.key.includes(q)):kwPanelList}
+function drawKwList(){
+  const sp=spendOn(),list=filteredKw(),CAP=400;
+  if(!list.length){$('kwList').innerHTML='<p class="hint">No keywords match.</p>';return}
+  let h='<p class="hint" style="margin:0 0 6px">'+(list.length===kwPanelList.length?'All '+fmtN(list.length):fmtN(list.length)+' of '+fmtN(kwPanelList.length))+' keywords</p><table><thead><tr><th>Keyword</th><th>Match type</th>'+(sp?'<th class="num">Spend</th>':'')+'</tr></thead><tbody>';
+  list.slice(0,CAP).forEach(({leaf})=>{h+='<tr style="'+(leaf.act===0?'color:#8a97a6':'')+'"><td>'+esc(leaf.key)+'</td><td>'+badgeHTML(leaf.matchSet)+'</td>'+(sp?'<td class="num">'+fmt$(leaf.cost)+'</td>':'')+'</tr>'});
+  h+='</tbody></table>';
+  if(list.length>CAP)h+='<p class="hint">Showing '+CAP+' of '+fmtN(list.length)+'. Search to narrow, or use the Excel download for the full list.</p>';
+  $('kwList').innerHTML=h}
+
+/* ============ summary table (campaign view, optionally down to ad groups / ads) ============ */
+function summaryRows(model){
+  // one row per deepest item: campaign, or ad group, or ad — parents are columns on that same row
+  const lvl=$('tblLevel').value,out=[];
+  (function walk(n,groups,camp){
+    if(n.level==='campaign'){
+      if(lvl==='campaign'){out.push({groups,camp:n,n,kind:'campaign'});return}
+      for(const ag of sortKids([...n.kids.values()])){
+        const ads=lvl==='ad'?sortKids(adLeaves(ag)):[];
+        if(ads.length)ads.forEach(ad=>out.push({groups,camp:n,ag,ad,n:ad,kind:'ad'}));
+        else out.push({groups,camp:n,ag,n:ag,kind:'adgroup'})}
+      return}
+    for(const c of sortKids([...n.kids.values()]))walk(c,n.level==='group'?[...groups,n]:groups)})(model.root,[]);
+  return out}
+const STAT_COLS=['Status','Spend','% of total','Ad groups','Keywords','Match types','Ads','Headlines','Descriptions'];
+let hiddenCols=new Set();
+function summaryCols(model){
+  const lvl=$('tblLevel').value,sp=spendOn(),agCol=showAG()&&lvl!=='campaign',adCol=lvl==='ad';
+  const names=[...model.dims.map(dimLabel),'Campaign',...(agCol?['Ad group']:[]),...(adCol?['Ad']:[])];
+  const avail=['Status',...(sp?['Spend','% of total']:[]),...(lvl==='campaign'&&showAG()?['Ad groups']:[]),'Keywords','Match types',...(adCol?['Headlines','Descriptions']:['Ads'])];
+  const stats=avail.filter(h=>!hiddenCols.has(h));
+  return{dims:model.dims,agCol,adCol,sp,lvl,names,avail,stats,head:[...names,...stats]}}
+function statVal(h,n,total,kwNode){
+  const isAd=n.level==='ad';
+  switch(h){
+    case 'Status':return statusOf(n);
+    case 'Spend':return n.cost;
+    case '% of total':return total?n.cost/total:null;
+    case 'Ad groups':return n.level==='campaign'?n.kids.size:n.agSet.size;
+    case 'Keywords':return kwCount(kwNode||n);
+    case 'Match types':return matchTypes((kwNode||n).matchSet);
+    case 'Ads':return n.adLeafN||0;
+    case 'Headlines':return isAd?n.rows[0].heads.length:null;
+    case 'Descriptions':return isAd?n.rows[0].descs.length:null}return ''}
+function summaryValues(r,C,total){
+  const n=r.n,isAd=r.kind==='ad',kwNode=r.ag||r.camp;
+  const v=[...C.dims.map((d,i)=>r.groups[i]?r.groups[i].name:''),displayName(r.camp)+(r.camp.campSet.size>1?' ×'+r.camp.campSet.size:'')];
+  if(C.agCol)v.push(r.ag?displayName(r.ag)+(dupTag(r.ag)?' '+dupTag(r.ag):''):'');
+  if(C.adCol)v.push(isAd?n.name+(n.rows.length>1?' ×'+n.rows.length:''):'(no ads)');
+  C.stats.forEach(h=>v.push(statVal(h,n,total,kwNode)));
+  return v}
+function drawColToggles(C){
+  $('colToggles').innerHTML='<span class="hint">Columns:</span>'+C.avail.map(h=>'<label class="ck"><input type="checkbox" data-col="'+esc(h)+'"'+(hiddenCols.has(h)?'':' checked')+'>'+esc(h)+'</label>').join('');
+  $('colToggles').querySelectorAll('input').forEach(cb=>cb.onchange=()=>{cb.checked?hiddenCols.delete(cb.dataset.col):hiddenCols.add(cb.dataset.col);drawSummary(lastModel);saveState()})}
+function drawSummary(model){
+  const total=model.root.cost,C=summaryCols(model),rows=summaryRows(model),nd=C.dims.length,nn=C.names.length;
+  drawColToggles(C);
+  const NUM=new Set(['Spend','% of total','Ad groups','Keywords','Ads','Headlines','Descriptions']);
+  const isNum=i=>NUM.has(C.head[i]);
+  const fmtCell=(h,v)=>v==null?'':h==='Spend'?fmt$(v):h==='% of total'?(v*100).toFixed(1)+'%':typeof v==='number'?fmtN(v):esc(v);
+  const V=rows.map(r=>summaryValues(r,C,total));
+  // merge a repeated campaign / ad group name into one tall cell instead of repeating it
+  const mergeCols=[];for(let i=nd;i<nd+1+(C.agCol?1:0);i++)mergeCols.push(i);
+  const agIdx=C.agCol?nd+1:-1,kwIdx=C.head.indexOf('Keywords'),mtIdx=C.head.indexOf('Match types');
+  const span=V.map(()=>({}));
+  mergeCols.forEach(ci=>{for(let k=0;k<rows.length;){let e=k+1;
+    while(e<rows.length&&rows[e].groups[0]===rows[k].groups[0]&&(ci===nd?rows[e].camp===rows[k].camp:rows[e].ag===rows[k].ag&&rows[e].camp===rows[k].camp))e++;
+    span[k][ci]=e-k;for(let x=k+1;x<e;x++)span[x][ci]=0;
+    if(ci===agIdx&&C.adCol)[kwIdx,mtIdx].filter(c=>c>-1).forEach(c2=>{span[k][c2]=e-k;for(let x=k+1;x<e;x++)span[x][c2]=0});
+    k=e}});
+  let html='<table><thead><tr>'+C.head.map((h,i)=>'<th'+(isNum(i)?' class="num"':'')+'>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>';
+  let lastTop=null;
+  rows.forEach((r,k)=>{
+    if(nd&&r.groups[0]!==lastTop){lastTop=r.groups[0];const g=lastTop;
+      html+='<tr class="sub"><td colspan="'+nn+'">'+esc(g.name)+' <span class="hint">('+g.campSet.size+' campaigns)</span></td>'+C.stats.map(h=>'<td'+(NUM.has(h)?' class="num"':'')+'>'+(h==='Headlines'||h==='Descriptions'?'':fmtCell(h,statVal(h,g,total)))+'</td>').join('')+'</tr>'}
+    const off=r.n.act===0;
+    html+='<tr>'+V[k].map((x,i)=>{const sp=span[k][i];if(sp===0)return '';const dim=i===nd?r.camp.act===0:i===agIdx?(r.ag&&r.ag.act===0):off;
+      return '<td'+(sp>1?' rowspan="'+sp+'"':'')+' class="'+(isNum(i)?'num':'')+(i===nd?' cn':'')+'"'+(dim?' style="color:#9aa5b1"':'')+'>'+fmtCell(C.head[i],x)+'</td>'}).join('')+'</tr>'});
+  html+='</tbody></table>';
+  $('summary').innerHTML=html;$('summary').className='';$('tableCard').style.display='block'}
+function settingsPairs(model){
+  const on=id=>$(id).checked;const merges=[on('tMatch')&&'Match types',on('tYear')&&'Year copies',on('tMarket')&&'Market tiers'].filter(Boolean);
+  const R=model.root;
+  return [['Files',loadedFiles.filter(f=>f.kind!=='error').map(f=>f.name+' ('+f.kind+')').join(', ')],
+    ['Date range',reportDateRange||'(not found)'],
+    ['Loaded',fmtN(kwRows.length)+' keyword rows · '+fmtN(adRows.length)+' ad rows'],
+    ['In view',R.campSet.size+' campaigns · '+R.agSet.size+' ad groups · '+fmtN(kwCount(R))+' keywords · '+fmtN(R.adLeafN||0)+' ads'],
+    ['Campaigns',selectedCampaigns.size===campaignNames.length?'All ('+campaignNames.length+')':[...selectedCampaigns].sort().join(', ')],
+    ['Grouping',model.dims.length?model.dims.map(dimLabel).join(' → '):'(none)'],
+    ['De-duplicated',merges.length?merges.join(', '):'(none)'],
+    ['Status',$('statusSel').selectedOptions[0].text],['Text contains',$('containsFilter').value||'(none)'],
+    ['Showing',[on('tAG')&&'Ad groups',on('tAds')&&'Ads',on('tKws')&&'Keywords'].filter(Boolean).join(' + ')||'Campaigns only'],
+    ['Hide $0 spend',on('tZero')?'Yes':'No'],spendOn()&&['Total spend',fmt$(model.root.cost)]].filter(Boolean)}
+function drawSettings(model){$('settingsCard').style.display='block';$('settingsBody').innerHTML=settingsPairs(model).map(([k,v])=>'<strong>'+k+':</strong> '+(k==='Campaigns'&&selectedCampaigns.size!==campaignNames.length?[...selectedCampaigns].sort().map(c=>'<span class="chip">'+esc(c)+'</span>').join(''):esc(v))).join(' &middot; ')}
+
+/* ============ custom groupings editor ============ */
+function uid(){return Math.random().toString(36).slice(2,9)}
+function starterGrouping(){return{id:uid(),name:'Campaign theme (starter)',field:'campaign',fallback:'Other',rules:[
+  {label:'Condition / symptom',terms:'alimentum, hypoallergenic, easy-to-digest, gentle, sensitive, colic, allergy, spit'},
+  {label:'Coupon / offer',terms:'coupon, savings, offer, promo, rebate, deal'},
+  {label:'Competitor conquest',terms:'compet, conquest'},
+  {label:'Product',terms:'organic, irish farms, whole milk, cows milk, infant formula, general, 360, pro-advance, toddler'}]}}
+function openCg(open){$('cgBody').style.display=open?'block':'none';$('cgCaret').innerHTML=open?'&#9662;':'&#9656;'}
+$('cgHead').onclick=()=>openCg($('cgBody').style.display==='none');
+function renderCgEditor(){
+  const s=$('cgPick');s.innerHTML='';customGroups.forEach(g=>s.append(new Option(g.name,g.id)));
+  if(!customGroups.length){s.append(new Option('(none yet)',''))}
+  if(!customGroups.find(g=>g.id===cgEditId))cgEditId=customGroups[0]?.id||null;
+  s.value=cgEditId||'';
+  const g=customGroups.find(x=>x.id===cgEditId);
+  $('cgName').value=g?.name||'';$('cgField').value=g?.field||'campaign';$('cgFallback').value=g?.fallback||'Other';
+  $('cgRules').innerHTML='';(g?.rules||[{label:'',terms:''}]).forEach(r=>addRuleRow(r.label,r.terms));
+  cgPreview()}
+function addRuleRow(label='',terms=''){const tr=document.createElement('tr');tr.innerHTML='<td><input class="cgL" placeholder="e.g. Illness"></td><td><input class="cgT" placeholder="e.g. alimentum, sensitive, colic"></td><td><button class="cg-x" title="Remove">×</button></td>';
+  tr.querySelector('.cgL').value=label;tr.querySelector('.cgT').value=terms;tr.querySelector('.cg-x').onclick=()=>{tr.remove();cgPreview()};
+  tr.querySelectorAll('input').forEach(i=>i.oninput=debounce(cgPreview,250));$('cgRules').append(tr)}
+function readEditor(){return{id:cgEditId||uid(),name:$('cgName').value.trim()||'Custom grouping',field:$('cgField').value,fallback:$('cgFallback').value.trim()||'Other',
+  rules:[...$('cgRules').querySelectorAll('tr')].map(tr=>({label:tr.querySelector('.cgL').value.trim(),terms:tr.querySelector('.cgT').value.trim()})).filter(r=>r.label||r.terms)}}
+function cgPreview(){
+  const g=readEditor();if(!kwRows.length&&!adRows.length){$('cgPreview').innerHTML='';return}
+  const buckets=new Map();const seen=new Set();
+  [...kwRows,...adRows].forEach(r=>{const k=g.field==='campaign'?r.campaign:r.campaign+'\u0001'+r.adgroup;if(seen.has(k))return;seen.add(k);
+    const b=applyGrouping(g,r);if(!buckets.has(b))buckets.set(b,new Set());buckets.get(b).add(g.field==='campaign'?r.campaign:r.campaign+' › '+r.adgroup)});
+  const unit=g.field==='campaign'?'campaigns':'ad groups';
+  let h='<strong>Preview:</strong> '+[...buckets.entries()].sort((a,b)=>b[1].size-a[1].size).map(([b,s])=>'<span class="chip">'+esc(b)+' · '+s.size+'</span>').join('');
+  [...buckets.entries()].forEach(([b,s])=>{h+='<details'+(b===g.fallback&&s.size?' open':'')+'><summary>'+esc(b)+' — '+s.size+' '+unit+'</summary><div class="hint" style="column-width:340px;margin-top:4px">'+[...s].sort().map(esc).join('<br>')+'</div></details>'});
+  $('cgPreview').innerHTML=h}
+function newGrouping(){const g={id:uid(),name:'New grouping',field:'campaign',fallback:'Other',rules:[{label:'',terms:''}]};customGroups.push(g);cgEditId=g.id;renderCgEditor();refreshGroupSelects();$('cgName').focus();$('cgName').select()}
+$('cgNew').onclick=newGrouping;
+$('cgPick').onchange=()=>{cgEditId=$('cgPick').value;renderCgEditor()};
+$('cgAddRule').onclick=()=>addRuleRow();
+$('cgSave').onclick=()=>{const g=readEditor();const i=customGroups.findIndex(x=>x.id===g.id);if(i>-1)customGroups[i]=g;else customGroups.push(g);cgEditId=g.id;
+  refreshGroupSelects();if($('g1').value!=='cg:'+g.id&&$('g2').value!=='cg:'+g.id)$('g1').value='cg:'+g.id;expanded.clear();renderCgEditor();saveState();render();setStatus('Saved grouping “'+g.name+'” and applied it.')};
+$('cgDelete').onclick=()=>{if(!cgEditId)return;if(!confirm('Delete this grouping?'))return;customGroups=customGroups.filter(g=>g.id!==cgEditId);['g1','g2'].forEach(id=>{if($(id).value==='cg:'+cgEditId)$(id).value=''});cgEditId=null;refreshGroupSelects();renderCgEditor();saveState();render()};
+$('cgExport').onclick=()=>blobDownload(new Blob([JSON.stringify(customGroups,null,2)],{type:'application/json'}),'custom_groupings.json');
+$('cgImport').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const arr=JSON.parse(r.result);if(!Array.isArray(arr))throw 0;arr.forEach(g=>{g.id=g.id||uid();const i=customGroups.findIndex(x=>x.id===g.id);if(i>-1)customGroups[i]=g;else customGroups.push(g)});refreshGroupSelects();renderCgEditor();saveState();setStatus('Imported '+arr.length+' grouping(s).')}catch{setStatus("That file isn't a groupings export.")}};r.readAsText(f);e.target.value=''};
+
+/* ============ persistence ============ */
+const VIEW_IDS=['tblLevel','tMatch','tYear','tMarket','tDetails','tSpend','tAG','tAds','tKws','tZero','statusSel','expandSel','sortSel','kwMode','g1','g2'];
+function saveState(){try{const v={};VIEW_IDS.forEach(id=>{const el=$(id);v[id]=el.type==='checkbox'?el.checked:el.value});localStorage.setItem(LS,JSON.stringify({customGroups,view:v,hiddenCols:[...hiddenCols]}))}catch(e){}}
+function restoreState(){let st=null;try{st=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){}
+  customGroups=st&&Array.isArray(st.customGroups)?st.customGroups:[starterGrouping()];
+  refreshGroupSelects();
+  if(st&&Array.isArray(st.hiddenCols))hiddenCols=new Set(st.hiddenCols);
+  if(st&&st.view)VIEW_IDS.forEach(id=>{const el=$(id);if(!(id in st.view))return;if(el.type==='checkbox')el.checked=st.view[id];else if([...el.options].some(o=>o.value===st.view[id]))el.value=st.view[id]})}
+
+/* ============ wiring ============ */
+['tMatch','tYear','tMarket','tDetails','tSpend','tAG','tAds','tKws','tZero','statusSel','sortSel','kwMode'].forEach(id=>$(id).onchange=()=>{if(['tMatch','tYear','tMarket','tAG'].includes(id)){expanded.clear();selectedId=null;$('detail').classList.remove('show','min')}render()});
+window.addEventListener('resize',debounce(()=>applyView(),150));
+$('tblLevel').onchange=()=>{if(lastModel){drawSummary(lastModel);saveState()}};
+$('expandSel').onchange=()=>{expanded.clear();render()};
+$('containsFilter').oninput=debounce(render,250);
+$('downloadBtn').onclick=()=>{const t=$('dlType').value;if(t==='xlsx')downloadXLSX();else if(t==='pdf')downloadPDF();else downloadPNG()};
+
+/* ============ downloads ============ */
+function blobDownload(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+async function withExportLayout(fn){
+  const prev={...view},dshow=$('detail').style.display,ts=$('tableScroll');
+  view={k:1,x:24,y:8};applyView();$('detail').style.display='none';ts.style.maxHeight='none';ts.style.overflow='visible';
+  const W=Math.max($('reportArea').scrollWidth,lastLayout.width+100,ts.scrollWidth+40);vp.style.width=W+'px';$('chartTop').style.position='static';
+  try{return await fn(W)}finally{vp.style.width='';$('chartTop').style.position='';ts.style.maxHeight='';ts.style.overflow='';$('detail').style.display=dshow;view=prev;applyView()}}
+const MAXPX=28000; // browsers refuse canvases taller than ~32k px
+const snap=(el,W,o)=>{const h=(o&&o.height)||el.getBoundingClientRect().height;return html2canvas(el,Object.assign({backgroundColor:'#ffffff',scale:Math.min(2,MAXPX/h),scrollX:0,scrollY:-scrollY,width:W+40,windowWidth:W+80},o||{}))};
+async function downloadPNG(){const c=await withExportLayout(W=>snap($('reportArea'),W));c.toBlob(b=>blobDownload(b,'account_structure_tree.png'))}
+async function downloadPDF(){
+  // tree first, then the table on its own fresh page; pages only ever break between rows
+  const{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'}),M=24,pw=pdf.internal.pageSize.getWidth()-2*M,ph=pdf.internal.pageSize.getHeight()-2*M;
+  setStatus('Building PDF…');
+  await withExportLayout(async W=>{
+    const cssW=W+40,pt=pw/cssW,pageCss=ph/pt,L=lastLayout;
+    const relBreaks=(el,nodes)=>{const t=el.getBoundingClientRect().top;return [...nodes].map(n=>n.getBoundingClientRect().bottom-t)};
+    const vt=vp.getBoundingClientRect().top-$('chartCard').getBoundingClientRect().top,treeBreaks=[];
+    for(let k=1;k*L.ROW+TOP<=L.height;k++)treeBreaks.push(vt+8+TOP+k*L.ROW-(L.ROW-L.H)/2);
+    const parts=[{el:$('chartCard'),breaks:treeBreaks,shrink:true},{el:$('tableCard'),breaks:relBreaks($('tableCard'),$('summary').querySelectorAll('tr')),newPage:true},{el:$('settingsCard'),breaks:[]}];
+    let y=0,first=true; // y = css px already used on the current page
+    for(const part of parts){
+      const H=part.el.getBoundingClientRect().height,br=part.breaks.filter(b=>b>0&&b<H).sort((a,b)=>a-b);
+      if(!first&&(part.newPage||y+Math.min(H,pageCss*.25)>pageCss||(y>0&&H>pageCss-y&&H<=pageCss))){pdf.addPage();y=0}
+      first=false;
+      if(part.shrink&&H>pageCss&&H<=pageCss*1.6){ // slightly too tall: shrink onto one page instead of spilling a few rows
+        const c=await snap(part.el,W),f=pageCss/H;pdf.addImage(c.toDataURL('image/jpeg',.92),'JPEG',M,M,pw*f,ph);y=pageCss;continue}
+      // plan the page slices (css px), then render them in tiles small enough for the browser
+      const segs=[];let pos=0,yy=y;
+      while(pos<H-1){const room=pageCss-yy;let end=H;
+        if(end-pos>room){const fit=br.filter(b=>b>pos+1&&b-pos<=room);
+          if(fit.length)end=fit[fit.length-1];else if(yy>0){yy=0;segs.push({brk:true});continue}else end=Math.min(H,pos+room)}
+        segs.push({pos,end,y:yy});yy+=end-pos+8;pos=end;if(pos<H-1){segs.push({brk:true});yy=0}}
+      let tile=null;
+      for(const sg of segs){
+        if(sg.brk){pdf.addPage();continue}
+        if(!tile||sg.end>tile.end){let e=sg.end;for(const s2 of segs)if(!s2.brk&&s2.pos>=sg.pos&&s2.end-sg.pos<=6500)e=Math.max(e,s2.end);
+          const c=await snap(part.el,W,{y:sg.pos,height:e-sg.pos});tile={start:sg.pos,end:e,c,sc:c.height/(e-sg.pos)}}
+        const sy=Math.round((sg.pos-tile.start)*tile.sc),sh=Math.max(1,Math.round((sg.end-sg.pos)*tile.sc)),t=document.createElement('canvas');
+        t.width=tile.c.width;t.height=sh;t.getContext('2d').drawImage(tile.c,0,sy,tile.c.width,sh,0,0,tile.c.width,sh);
+        pdf.addImage(t.toDataURL('image/jpeg',.92),'JPEG',M,M+sg.y*pt,pw,(sg.end-sg.pos)*pt)}
+      y=yy}});
+  setStatus('');
+  pdf.save('account_structure_tree.pdf')}
+async function downloadXLSX(){
+  const model=lastModel;if(!model)return;const dims=model.dims,total=model.root.cost,sp=spendOn();
+  const wb=new ExcelJS.Workbook(),thin={style:'thin',color:{argb:'FFE3E8EF'}},border={top:thin,left:thin,bottom:thin,right:thin},fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0F4F9'}};
+  const head=(ws,cols)=>{const r=ws.addRow(cols);r.eachCell(c=>{c.font={bold:true};c.fill=fill;c.border=border});ws.views=[{state:'frozen',ySplit:r.number}]};
+  const s=wb.addWorksheet('Settings');s.addRow(['Report settings']).getCell(1).font={bold:true,size:13,color:{argb:'FF1A4FA0'}};
+  settingsPairs(model).forEach(p=>{const r=s.addRow(p);r.getCell(1).font={bold:true,color:{argb:'FF1A4FA0'}}});s.columns=[{width:22},{width:90}];
+  const C=summaryCols(model),sv=wb.addWorksheet('Summary');head(sv,C.head);
+  summaryRows(model).forEach(r=>{const row=sv.addRow(summaryValues(r,C,total));C.head.forEach((h,i)=>{if(h==='Spend')row.getCell(i+1).numFmt='$#,##0.00';if(h==='% of total')row.getCell(i+1).numFmt='0.0%'});if(r.n.act===0)row.font={color:{argb:'FF9AA5B1'}};row.eachCell(c=>c.border=border)});
+  sv.columns=C.head.map(h=>({width:h==='Campaign'?48:h==='Ad'?50:h==='Ad group'?32:['Status','Spend','Match types'].includes(h)?16:h.length>14?24:12}));
+  const st=wb.addWorksheet('Structure');const sh=[...dims.map(dimLabel),'Campaign','Ad group','Type','Keyword / Ad','Match type(s)','Status'];if(sp)sh.push('Spend');sh.push('Copies','Underlying campaigns','Headlines','Descriptions','Final URL');head(st,sh);
+  (function walk(n,path){
+    if(n.level==='kw'||n.level==='ad'){const gp=path.filter(x=>x.level==='group'),c=path.find(x=>x.level==='campaign'),a=path.find(x=>x.level==='adgroup'),r0=n.rows[0];
+      const v=[...dims.map((d,i)=>gp[i]?gp[i].name:''),c?displayName(c):'',a?displayName(a):'',n.level==='kw'?'Keyword':(r0.adType||'Ad'),n.level==='kw'?displayName(n):adTitle(r0),n.level==='kw'?matchTypes(n.matchSet):'',statusOf(n)];
+      if(sp)v.push(n.cost);
+      v.push(n.rows.length,[...n.campSet].join('\n'),n.level==='ad'?r0.heads.map(h=>h.text+(h.pos?' [pin '+h.pos+']':'')).join('\n'):'',n.level==='ad'?r0.descs.map(h=>h.text+(h.pos?' [pin '+h.pos+']':'')).join('\n'):'',(r0.url||'').split('?')[0]);
+      const row=st.addRow(v);if(sp)row.getCell(dims.length+7).numFmt='$#,##0.00';return}
+    for(const k of sortKids([...n.kids.values()]))walk(k,[...path,n])})(model.root,[]);
+  st.columns=[...dims.map(()=>({width:20})),{width:44},{width:30},{width:12},{width:44},{width:16},{width:13},...(sp?[{width:12}]:[]),{width:8},{width:40},{width:50},{width:60},{width:50}];
+  const buf=await wb.xlsx.writeBuffer();blobDownload(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'account_structure.xlsx')}
+
+restoreState();
+</script>
+</body>
+</html>
