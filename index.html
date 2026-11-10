@@ -121,9 +121,22 @@ table.tt td:empty{border-left-color:transparent;border-right-color:transparent}
 .cg-top label{font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:4px}
 .cg-rules{width:100%;font-size:13px}.cg-rules td{padding:5px 6px}.cg-rules input{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid #d0d8e2;border-radius:6px}
 .cg-x{background:none;color:#b04a3a;border:none;font-size:16px;padding:2px 8px}
-#kpiHead{cursor:pointer;user-select:none}.kh{margin:14px 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#52606d}
-#kpiCols{display:flex;flex-direction:column;gap:6px}.kc{display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer}.kc input{margin-top:3px}
-#kpiForms td{vertical-align:middle}#kpiForms .kP{font-size:12px;line-height:1.35}
+.tgroup div.sel{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px}
+.ms-panel.kp{width:440px;max-height:460px;padding:6px 6px 0}.kp-sec{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#7b8794;padding:8px 8px 4px}
+.kp-f{cursor:default}.kp-ic{background:none;color:#7b8794;border:none;padding:2px 6px;font-size:14px;font-weight:400;border-radius:4px}.kp-ic:hover{background:#eef2f7;color:#1a73e8}.kp-ic.del:hover{color:#b04a3a}
+.kp-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid #eef2f7;padding:8px;margin:4px -6px 0}
+#fbOverlay{position:fixed;inset:0;z-index:60;background:rgba(15,39,71,.32);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}#fbOverlay[hidden]{display:none}
+.fb{background:#fff;border-radius:14px;box-shadow:0 24px 60px rgba(16,24,40,.25);width:640px;max-width:100%;padding:20px 22px;box-sizing:border-box}
+.fb h3{margin:0 0 12px;font-size:16px}.fbl{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#33404f;margin-bottom:10px}.fbl input,.fbl select{font-size:14px;padding:8px 10px}
+#fbExpr{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px}
+.fb-pretty{font-size:13px;color:#1a4fa0;min-height:18px;margin:-4px 0 8px}
+.fb-ops{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.fb-ops button{background:#f1f4f8;color:#1f2933;border:1px solid #dfe5ec;min-width:40px;font-size:15px;padding:6px 10px}.fb-ops button:hover{background:#e6edf6}.fb-ops button.alt{font-size:12px;font-weight:500}
+.fb-sec{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7b8794;margin:4px 0 6px}
+.fb-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:210px;overflow:auto;padding:2px 0 4px}.fb-sub{flex-basis:100%;font-size:11px;color:#9aa5b1;margin-top:4px}
+.fb-chip{background:#eaf1fb;color:#1a4fa0;border:1px solid #d6e4fb;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600}.fb-chip:hover{background:#d9e7fb}
+.fb-chip.rate{background:#fff7e6;color:#8a5a00;border-color:#f3dfb4}.fb-chip.own{background:#eefaf1;color:#1a7f37;border-color:#cfe9d6}
+.fb-bottom{display:flex;gap:16px;align-items:flex-end;margin-top:12px}.fb-prev{flex:1;font-size:13px;padding-bottom:12px}
+.fb-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
 .nd .kg{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;margin-top:3px}.nd .kc2{display:flex;gap:5px;min-width:0;font-size:11.5px;line-height:16px}.nd .kl{color:#7b8794;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.nd .kv{color:#1a4fa0;font-weight:600;white-space:nowrap;margin-left:auto}.nd.off .kv{color:#a7b1bd}
 .kwwrap{overflow-x:auto}
 .chip{display:inline-block;background:#fff;border:1px solid #d6e4fb;border-radius:20px;padding:2px 10px;margin:2px 4px 2px 0;font-size:12px}
@@ -171,20 +184,9 @@ table.tt td:empty{border-left-color:transparent;border-right-color:transparent}
  <div class="tgroup"><h4>Layout</h4><div class="tg-row">
   <label class="sel">Open columns through<select id="expandSel"><option value="1">Groups</option><option value="2" selected>Campaigns</option><option value="3">Ad groups</option><option value="4">Ads &amp; keywords</option></select></label>
   <label class="sel hastip"><span class="lbl">Keywords in tree <button type="button" class="info">i</button></span><span class="tip">“Summary card” shows one Keywords card per ad group — click it to see the full, searchable list in the side panel. Or list the top keywords right in the tree.</span><select id="kwMode"><option value="0">Summary card (list in panel)</option><option value="5">Top 5</option><option value="10">Top 10</option><option value="25">Top 25</option><option value="all">All</option></select></label>
+  <div class="sel"><span>KPIs</span><div class="ms" id="kpiMs"><button type="button" class="ms-btn" id="kpiBtn" style="min-width:180px"><span id="kpiLabel">None</span><span class="caret">&#9662;</span></button><div class="ms-panel kp" id="kpiPanel"></div></div></div>
   <label class="sel">Sort by<select id="sortSel"><option value="cost">Spend</option><option value="name">Name</option><option value="kws"># keywords</option></select></label>
  </div></div>
-</div>
-</div>
-
-<div class="card" id="kpiCard" style="display:none">
-<h3 id="kpiHead"><span id="kpiCaret">&#9656;</span> KPIs <span class="hint" style="font-weight:400">— pull in more columns from your files (clicks, CPC, conversions, custom columns…) or build your own formula</span> <span id="kpiOnCount" class="chip" style="display:none"></span></h3>
-<div id="kpiBody" style="display:none">
- <h4 class="kh">Columns found in your files</h4>
- <div id="kpiCols"></div>
- <h4 class="kh">Custom formulas</h4>
- <table class="cg-rules"><thead><tr><th style="width:20%">Name</th><th>Formula</th><th style="width:130px">Format</th><th style="width:210px">Account total</th><th style="width:50px">Show</th><th style="width:40px"></th></tr></thead><tbody id="kpiForms"></tbody></table>
- <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px"><button class="secondary small" id="kpiAdd">+ Add formula</button><select id="kpiInsert" style="min-width:190px"><option value="">Insert a column…</option></select><span class="hint">Use [Column name], numbers and + − × ÷ ( ). Example: <b>[Cost] / [Appointment signups]</b></span></div>
- <p class="hint">Counts (clicks, conversions, signups…) add up through ad groups and campaigns. Rates and “per” columns (CPC, CTR, cost per…) are recalculated from their parts at every level instead of being added or averaged.</p>
 </div>
 </div>
 
@@ -222,6 +224,17 @@ table.tt td:empty{border-left-color:transparent;border-right-color:transparent}
 <div class="card" id="settingsCard" style="display:none"><h3>Report settings</h3><div id="settingsBody"></div></div>
 </div>
 </div>
+<div id="fbOverlay" hidden><div class="fb" role="dialog" aria-label="Custom formula">
+ <h3 id="fbTitle">New custom formula</h3>
+ <label class="fbl">Name<input type="text" id="fbName" placeholder="e.g. Cost per phone call"></label>
+ <label class="fbl">Formula<input type="text" id="fbExpr" placeholder="Click metrics and operators below — or type" autocomplete="off" spellcheck="false"></label>
+ <div id="fbPretty" class="fb-pretty"></div>
+ <div class="fb-ops" id="fbOps"><button type="button" data-op="+">+</button><button type="button" data-op="-">−</button><button type="button" data-op="*">×</button><button type="button" data-op="/">÷</button><button type="button" data-op="(">(</button><button type="button" data-op=")">)</button><button type="button" data-op="100">100</button><button type="button" data-op="1000">1000</button><span style="flex:1"></span><button type="button" id="fbUndo" class="alt">⌫ Undo</button><button type="button" id="fbClear" class="alt">Clear</button></div>
+ <div class="fb-sec">Metrics — click to add</div>
+ <div id="fbChips" class="fb-chips"></div>
+ <div class="fb-bottom"><label class="fbl" style="flex:0 0 170px">Format<select id="fbFmt"><option value="auto">Auto</option><option value="cur">$ Currency</option><option value="pct">% Percent</option><option value="num">Number</option></select></label><div id="fbPrev" class="fb-prev"></div></div>
+ <div class="fb-actions"><button type="button" class="secondary" id="fbCancel">Cancel</button><button type="button" id="fbSave">Save formula</button></div>
+</div></div>
 <div id="detail"><button id="dTab" title="Show / hide details">›</button><button id="dClose" title="Close">×</button><div id="dBody"></div></div>
 
 <script>
@@ -254,8 +267,8 @@ $('file').onchange=async e=>{
   expanded.clear();selectedId=null;
   buildCampaignFilter();
   finalizeMetrics();
-  $('viewCard').style.display='block';$('kpiCard').style.display='block';$('cgCard').style.display='block';$('chartCard').style.display='block';
-  refreshGroupSelects();renderCgEditor();renderKpiEditor();refreshSortOptions();render();renderKpiEditorPreviews();
+  $('viewCard').style.display='block';$('cgCard').style.display='block';$('chartCard').style.display='block';
+  refreshGroupSelects();renderCgEditor();renderKpiMenu();refreshSortOptions();render();
 };
 function readFile(f){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=()=>rej(new Error('read failed'));r.onload=ev=>{try{const buf=new Uint8Array(ev.target.result);
   if(buf[0]===0x50&&buf[1]===0x4B){const wb=XLSX.read(buf,{type:'array'});const sh=wb.Sheets[wb.SheetNames[0]];return res(XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:''}))}
@@ -754,7 +767,7 @@ function drawSettings(model){$('settingsCard').style.display='block';$('settings
 /* ============ KPIs: extra metric columns from the files + custom formulas ============ */
 let METRICS=new Map();            // name -> {name,pct,cur,inKw,inAd,kind:'sum'|'ratio',rollup,rollupFn}
 let kpiCfg={cols:[],formulas:[]}; // cols: column names switched on; formulas: [{id,name,expr,fmt,on}]
-const NOT_METRIC=/(^|\s)id$|\bid\b|customer id|position|currency|url|template|parameter|suffix|max\.?\s*cpc|bid|budget|status|type|^keyword$|^ad group$|^campaign$|headline|description|path|label|^row type$|^action$|phone|country/i;
+const NOT_METRIC=/(^|\s)id$|\bid\b|customer id|url|template|parameter|suffix|max\.?\s*cpc|bid strategy|^(ad |campaign |ad group |keyword )?(status|type|state)$|^keyword$|^ad group$|^campaign$|^headline|^description|^path|^labels?$|^row type$|^action$|position$|^(phone|country|currency)( code| number)?$|^budget/i;
 const NUMRX=/^\s*[-+]?[$€£]?\s*-?[\d,]*\.?\d+\s*%?\s*$/;
 const RATIO_RX=/(^|\W)(avg\.?|average|cpc|cpm|cpa|cpv|ctr|roas|rate|share|score|per)(\W|$)|\/|%/i;
 function detectMetrics(H,rows,hi,valid){
@@ -774,11 +787,13 @@ function fuzzyMetric(s){const k=normName(s);if(k.length<3)return null;let best=n
 function deriveRollup(name){
   const find=(...res)=>{for(const m of METRICS.values()){if(m.kind!=='sum')continue;if(res.some(re=>re.test(m.name)))return m.name}return null};
   const n=name.toLowerCase(),q=s=>'['+s+']';
-  const cost=find(/^cost$/i,/^spend$/i),clicks=find(/^clicks$/i),impr=find(/^impr(\.|essions)?$/i),conv=find(/^conv(\.|ersions)$/i,/^conversions$/i),val=find(/^(total )?conv\.? value$/i,/^conversion value$/i,/^revenue$/i);
+  const cost=find(/^cost$/i,/^spend$/i),inter=find(/^interactions$/i),clicks=find(/^clicks$/i)||inter,impr=find(/^impr(\.|essions)?$/i),conv=find(/^conv(\.|ersions)$/i,/^conversions$/i),val=find(/^(total )?conv\.? value$/i,/^conversion value$/i,/^revenue$/i);
   if(/cpc/.test(n)&&cost&&clicks)return q(cost)+' / '+q(clicks);
+  if(/^avg\.? cost$/.test(n)&&cost&&(inter||clicks))return q(cost)+' / '+q(inter||clicks);
+  if(/interaction rate/.test(n)&&inter&&impr)return q(inter)+' / '+q(impr);
   if(/ctr/.test(n)&&clicks&&impr)return q(clicks)+' / '+q(impr);
   if(/cpm/.test(n)&&cost&&impr)return q(cost)+' / '+q(impr)+' * 1000';
-  if(/conv.*rate|conversion rate/.test(n)&&conv&&clicks)return q(conv)+' / '+q(clicks);
+  if(/conv.*rate|conversion rate/.test(n)&&conv&&(inter||clicks))return q(conv)+' / '+q(inter||clicks);
   if(/roas|value\s*\/\s*cost/.test(n)&&val&&cost)return q(val)+' / '+q(cost);
   if(/cost\s*\/\s*conv|cost per conv|^cpa$/.test(n)&&cost&&conv)return q(cost)+' / '+q(conv);
   const m=name.match(/^(.+?)\s*(?:\/|\bper\b)\s*(.+)$/i);
@@ -786,6 +801,14 @@ function deriveRollup(name){
   return null}
 function finalizeMetrics(){
   METRICS.forEach(m=>{m.kind=/^cost$/i.test(m.name)?'sum':(m.pct||RATIO_RX.test(m.name))?'ratio':'sum'});
+  const costM=[...METRICS.values()].find(m=>/^cost$/i.test(m.name));
+  if(costM)[...METRICS.values()].forEach(m=>{
+    if(m.kind!=='ratio'||deriveRollup(m.name))return;
+    const mm=m.name.match(/^(?:cost|spend)\s*(?:\/|\bper\b)\s*(.+)$/i);if(!mm)return;
+    const imp=mm[1].trim()+' (implied count)';if(METRICS.has(imp))return;
+    METRICS.set(imp,{name:imp,pct:false,cur:false,inKw:m.inKw,inAd:m.inAd,kind:'sum',implied:m.name});
+    [...kwRows,...adRows].forEach(r=>{if(!r.m||!(m.name in r.m))return;const c=r.m[costM.name],v=r.m[m.name];
+      r.m[imp]=v==null?null:(c>0&&v>0?Math.round(c/v*100)/100:0)})});
   METRICS.forEach(m=>{m.rollup=null;m.rollupFn=null;if(m.kind==='ratio'){m.rollup=deriveRollup(m.name);if(m.rollup){const c=compileExpr(m.rollup);if(!c.error)m.rollupFn=c.fn}}})}
 function formulaByName(s){const k=String(s).trim().toLowerCase();return kpiCfg.formulas.find(f=>f.name.trim().toLowerCase()===k)}
 // formulas: [Column name], numbers, + - * / ( ); compiled into a function of a lookup — nothing else is allowed through
@@ -832,55 +855,89 @@ function fmtKpi(v,fmt){
 const kpiFmtExcel=f=>f==='cur'?'$#,##0.00':f==='pct'?'0.00%':'#,##0.##';
 function kpiLine(n){const K=activeKpis();if(!K.length||n.synthetic)return '';return K.map(k=>k.label+' '+fmtKpi(k.get(n),k.fmt)).join(' · ')}
 
-/* ---- KPI editor ---- */
-function openKpi(open){$('kpiBody').style.display=open?'block':'none';$('kpiCaret').innerHTML=open?'&#9662;':'&#9656;'}
-$('kpiHead').onclick=()=>openKpi($('kpiBody').style.display==='none');
-let lastFormulaInput=null;
-function renderKpiEditor(){
+/* ---- KPI dropdown (under Layout) ---- */
+const kpiHow=m=>m.implied?'Cost ÷ '+m.implied+' per row, then summed':m.kind==='sum'?'adds up':m.rollup?'= '+m.rollup.replace(/\[|\]/g,'').replace(/ \/ /g,' ÷ ').replace(/ \* /g,' × '):'single keywords / ads only';
+function renderKpiMenu(){
   const cols=[...METRICS.values()].filter(m=>!/^cost$/i.test(m.name));
-  const src=m=>m.inKw&&m.inAd?'both reports':m.inKw?'keyword report':'ad report';
-  const how=m=>m.kind==='sum'?'adds up':m.rollup?'recalculated as '+m.rollup.replace(/\[|\]/g,'').replace(/ \/ /g,' ÷ '):'per keyword / ad only — add a formula to roll it up';
-  $('kpiCols').innerHTML=cols.length?cols.map(m=>'<label class="kc"><input type="checkbox" data-col="'+esc(m.name)+'"'+(kpiCfg.cols.includes(m.name)?' checked':'')+'><span><b>'+esc(m.name)+'</b><span class="hint"> · '+esc(src(m))+' · '+esc(how(m))+'</span></span></label>').join('')
-    :'<p class="hint" style="margin:0">Only <b>Cost</b> was found in these files. Add columns like Clicks, Impr., Conversions or your custom columns to the engine download and they’ll show up here. You can still build formulas from [Cost].</p>';
-  $('kpiCols').querySelectorAll('input').forEach(cb=>cb.onchange=()=>{const nm=cb.dataset.col;kpiCfg.cols=kpiCfg.cols.filter(x=>x!==nm);if(cb.checked){const order=[...METRICS.keys()];kpiCfg.cols.push(nm);kpiCfg.cols.sort((a,b)=>order.indexOf(a)-order.indexOf(b))}kpiChanged()});
-  const ins=$('kpiInsert');ins.innerHTML='<option value="">Insert a column…</option>'+[...METRICS.values()].map(m=>'<option>'+esc(m.name)+'</option>').join('')+kpiCfg.formulas.filter(f=>f.name.trim()).map(f=>'<option>'+esc(f.name.trim())+'</option>').join('');
-  $('kpiForms').innerHTML='';kpiCfg.formulas.forEach(f=>addFormulaRow(f));
-  if(!kpiCfg.formulas.length)$('kpiForms').innerHTML='<tr class="empty"><td colspan="6" class="hint">No formulas yet. Click “+ Add formula”.</td></tr>';
+  let h='<div class="kp-sec">From your files</div>';
+  h+=cols.length?cols.map(m=>'<label class="ms-item"><input type="checkbox" data-col="'+esc(m.name)+'"'+(kpiCfg.cols.includes(m.name)?' checked':'')+'><span>'+esc(m.name)+'<span class="hint"> · '+esc(kpiHow(m))+'</span></span></label>').join('')
+    :'<p class="hint" style="margin:4px 8px 8px">Only Cost was found in these files. Add columns like Clicks, Conversions or your custom columns to the engine download and they’ll show up here.</p>';
+  h+='<div class="kp-sec">Custom formulas</div>';
+  h+=kpiCfg.formulas.length?kpiCfg.formulas.map(f=>{const c=compileExpr(f.expr,f.name);
+      return '<div class="ms-item kp-f"><input type="checkbox" data-f="'+f.id+'"'+(f.on!==false?' checked':'')+(c.error?' disabled':'')+'><span>'+esc(f.name||'(unnamed)')+'<span class="hint"> · '+esc(prettyExpr(f.expr))+(c.error?' · ⚠ '+esc(c.error):'')+'</span></span><button type="button" class="kp-ic" data-edit="'+f.id+'" title="Edit">✎</button><button type="button" class="kp-ic del" data-del="'+f.id+'" title="Delete">×</button></div>'}).join('')
+    :'<p class="hint" style="margin:4px 8px 6px">None yet.</p>';
+  h+='<div class="kp-foot"><button type="button" class="secondary small" id="kpiNewF">+ Custom formula…</button></div>';
+  $('kpiPanel').innerHTML=h;
+  $('kpiPanel').querySelectorAll('input[data-col]').forEach(cb=>cb.onchange=()=>{const nm=cb.dataset.col;kpiCfg.cols=kpiCfg.cols.filter(x=>x!==nm);if(cb.checked){const order=[...METRICS.keys()];kpiCfg.cols.push(nm);kpiCfg.cols.sort((a,b)=>order.indexOf(a)-order.indexOf(b))}kpiChanged(false)});
+  $('kpiPanel').querySelectorAll('input[data-f]').forEach(cb=>cb.onchange=()=>{const f=kpiCfg.formulas.find(x=>x.id===cb.dataset.f);if(f){f.on=cb.checked;kpiChanged(false)}});
+  $('kpiPanel').querySelectorAll('[data-edit]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();openBuilder(kpiCfg.formulas.find(x=>x.id===b.dataset.edit))});
+  $('kpiPanel').querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const f=kpiCfg.formulas.find(x=>x.id===b.dataset.del);if(f&&confirm('Delete the formula “'+(f.name||'unnamed')+'”?')){kpiCfg.formulas=kpiCfg.formulas.filter(x=>x!==f);kpiChanged(false)}});
+  $('kpiNewF').onclick=e=>{e.preventDefault();e.stopPropagation();openBuilder(null)};
   updateKpiCount()}
-function addFormulaRow(f){
-  const tb=$('kpiForms');tb.querySelector('tr.empty')?.remove();
-  const tr=document.createElement('tr');tr.dataset.id=f.id;
-  tr.innerHTML='<td><input class="kN" placeholder="e.g. Cost per signup"></td><td><input class="kE" placeholder="e.g. [Cost] / [Appointment signups]"></td><td><select class="kF"><option value="auto">Auto</option><option value="cur">$ Currency</option><option value="pct">% Percent</option><option value="num">Number</option></select></td><td class="kP hint"></td><td style="text-align:center"><input type="checkbox" class="kO"></td><td><button class="cg-x" title="Delete formula">×</button></td>';
-  tr.querySelector('.kN').value=f.name;tr.querySelector('.kE').value=f.expr;tr.querySelector('.kF').value=f.fmt||'auto';tr.querySelector('.kO').checked=f.on!==false;
-  const sync=()=>{f.name=tr.querySelector('.kN').value;f.expr=tr.querySelector('.kE').value;f.fmt=tr.querySelector('.kF').value;f.on=tr.querySelector('.kO').checked;formulaPreview(tr,f);kpiChangedSoon()};
-  tr.querySelectorAll('input.kN,input.kE').forEach(i=>{i.oninput=sync;i.onfocus=()=>{if(i.classList.contains('kE'))lastFormulaInput=i}});
-  tr.querySelector('.kF').onchange=sync;tr.querySelector('.kO').onchange=sync;
-  tr.querySelector('.cg-x').onclick=()=>{kpiCfg.formulas=kpiCfg.formulas.filter(x=>x!==f);renderKpiEditor();kpiChanged()};
-  tb.append(tr);formulaPreview(tr,f);return tr}
-function formulaPreview(tr,f){
-  const p=tr.querySelector('.kP');
-  if(!f.expr.trim()){p.textContent='';return}
-  const c=compileExpr(f.expr,f.name);
-  if(c.error){p.innerHTML='<span style="color:#b04a3a">'+esc(c.error)+'</span>';return}
-  if(!lastModel){p.textContent='✓';return}
-  const k=activeKpis().find(x=>x.key==='f:'+f.id);const fmt=k?k.fmt:(f.fmt==='auto'?'num':f.fmt);
-  p.innerHTML='<span style="color:#1a7f37">✓</span> '+esc(fmtKpi(formulaVal(lastModel.root,f),fmt))+(f.name.trim()?'':' <span style="color:#a36b00">· give it a name</span>')}
-$('kpiAdd').onclick=()=>{const f={id:uid(),name:'',expr:'',fmt:'auto',on:true};kpiCfg.formulas.push(f);const tr=addFormulaRow(f);tr.querySelector('.kN').focus();lastFormulaInput=tr.querySelector('.kE');updateKpiCount()};
-$('kpiInsert').onchange=()=>{const nm=$('kpiInsert').value;$('kpiInsert').value='';if(!nm)return;
-  let inp=lastFormulaInput&&document.body.contains(lastFormulaInput)?lastFormulaInput:null;
-  if(!inp){$('kpiAdd').click();inp=lastFormulaInput}
-  const s=inp.selectionStart??inp.value.length,e=inp.selectionEnd??inp.value.length,t='['+nm+']';
-  inp.value=inp.value.slice(0,s)+t+inp.value.slice(e);inp.focus();inp.setSelectionRange(s+t.length,s+t.length);inp.dispatchEvent(new Event('input'))};
-function updateKpiCount(){const n=activeKpis().length;$('kpiOnCount').textContent=n?n+' on':'';$('kpiOnCount').style.display=n?'':'none'}
+const prettyExpr=s=>String(s||'').replace(/\s*\*\s*/g,' × ').replace(/\s*\/\s*/g,' ÷ ').replace(/\[|\]/g,'');
+function updateKpiCount(){const K=activeKpis();$('kpiLabel').textContent=K.length?(K.length===1?K[0].label:K.length+' KPIs on'):'None'}
+$('kpiBtn').onclick=e=>{e.preventDefault();e.stopPropagation();$('msPanel').classList.remove('open');$('kpiPanel').classList.toggle('open')};
+$('kpiPanel').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('click',e=>{if(!e.target.closest('#kpiMs'))$('kpiPanel').classList.remove('open')});
+
+/* ---- formula builder: click metrics + operators (typing still works) ---- */
+let fbEditing=null;
+function openBuilder(f){
+  fbEditing=f;$('kpiPanel').classList.remove('open');
+  $('fbTitle').textContent=f?'Edit formula':'New custom formula';
+  $('fbName').value=f?f.name:'';$('fbExpr').value=f?f.expr:'';$('fbFmt').value=f?(f.fmt||'auto'):'auto';
+  const metric=(nm,cls,hint)=>'<button type="button" class="fb-chip '+cls+'" data-ins="'+esc(nm)+'" title="'+esc(hint)+'">'+esc(nm)+'</button>';
+  const all=[...METRICS.values()];
+  const counts=all.filter(m=>m.kind==='sum'),rates=all.filter(m=>m.kind!=='sum');
+  let h='';
+  if(counts.length)h+='<div class="fb-sub">Counts &amp; cost</div>'+counts.map(m=>metric(m.name,'',kpiHow(m))).join('');
+  if(rates.length)h+='<div class="fb-sub">Rates</div>'+rates.map(m=>metric(m.name,'rate',kpiHow(m))).join('');
+  const others=kpiCfg.formulas.filter(x=>x!==f&&x.name.trim());
+  if(others.length)h+='<div class="fb-sub">Your formulas</div>'+others.map(x=>metric(x.name.trim(),'own',prettyExpr(x.expr))).join('');
+  $('fbChips').innerHTML=h||'<p class="hint">Upload a report first.</p>';
+  $('fbChips').querySelectorAll('[data-ins]').forEach(b=>b.onclick=()=>fbInsert('['+b.dataset.ins+']'));
+  $('fbOverlay').hidden=false;fbPreview();setTimeout(()=>(f?$('fbExpr'):$('fbName')).focus(),0)}
+function fbInsert(t){
+  const inp=$('fbExpr'),v=inp.value;let s=inp.selectionStart??v.length,e=inp.selectionEnd??v.length;
+  if(document.activeElement!==inp){s=e=v.length}
+  const before=v.slice(0,s),after=v.slice(e);
+  const pad=(/[\w\]\)]$/.test(before.trimEnd())||/^[+\-*/()]$/.test(t)||t.startsWith('['))&&before&&!/\s$/.test(before)?' ':'';
+  const ins=pad+t+(t==='('?'':' ');
+  inp.value=before+ins+after;const pos=(before+ins).length;inp.focus();inp.setSelectionRange(pos,pos);fbPreview()}
+function fbUndo(){const inp=$('fbExpr');let v=inp.value.replace(/\s+$/,'');
+  v=/\]$/.test(v)?v.replace(/\[[^\[\]]*\]$/,''):/\d$/.test(v)?v.replace(/[\d.]+$/,''):v.slice(0,-1);
+  inp.value=v.replace(/\s+$/,'')+(v?' ':'');inp.focus();fbPreview()}
+function fbPreview(){
+  const expr=$('fbExpr').value,name=$('fbName').value.trim(),p=$('fbPrev'),save=$('fbSave');
+  $('fbPretty').textContent=expr.trim()?prettyExpr(expr):'';
+  if(!expr.trim()){p.innerHTML='<span class="hint">Click a metric below to start, e.g. Cost, then ÷, then Phone Call (implied count).</span>';save.disabled=true;return}
+  const c=compileExpr(expr,name||'\u0000');
+  if(c.error){p.innerHTML='<span style="color:#b04a3a">'+esc(c.error)+'</span>';save.disabled=true;return}
+  const tmp={id:'__preview',name:name||'__preview',expr,fmt:$('fbFmt').value,on:true};
+  let fmt=tmp.fmt;if(fmt==='auto'){const r0=c.refs[0]&&metricByName(c.refs[0]),dc=c.refs.slice(1).some(r=>{const m=metricByName(r);return m&&m.cur});fmt=r0&&r0.cur&&!dc?'cur':'num'}
+  const val=lastModel?formulaVal(lastModel.root,tmp):null;
+  p.innerHTML='<span style="color:#1a7f37">✓</span> Account total: <b>'+esc(fmtKpi(val,fmt))+'</b>'+(name?'':' <span style="color:#a36b00">· add a name to save</span>');
+  save.disabled=!name||(!!formulaByName(name)&&formulaByName(name)!==fbEditing)}
+function closeBuilder(){$('fbOverlay').hidden=true;fbEditing=null}
+$('fbOps').querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>fbInsert(b.dataset.op));
+$('fbUndo').onclick=fbUndo;$('fbClear').onclick=()=>{$('fbExpr').value='';$('fbExpr').focus();fbPreview()};
+['fbExpr','fbName'].forEach(id=>$(id).oninput=fbPreview);$('fbFmt').onchange=fbPreview;
+$('fbCancel').onclick=closeBuilder;$('fbOverlay').onclick=e=>{if(e.target===$('fbOverlay'))closeBuilder()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('fbOverlay').hidden)closeBuilder()});
+$('fbSave').onclick=()=>{
+  const name=$('fbName').value.trim(),expr=$('fbExpr').value.trim(),fmt=$('fbFmt').value;
+  if(!name||compileExpr(expr,name).error)return;
+  if(fbEditing){const old=fbEditing.name.trim();Object.assign(fbEditing,{name,expr,fmt,on:true});fbEditing._c=null;
+    if(old&&old!==name)kpiCfg.formulas.forEach(x=>{x.expr=x.expr.split('['+old+']').join('['+name+']');x._c=null})}
+  else kpiCfg.formulas.push({id:uid(),name,expr,fmt,on:true});
+  closeBuilder();kpiChanged(true)};
 function refreshSortOptions(){
   const s=$('sortSel'),cur=s.value;[...s.options].filter(o=>o.value.startsWith('k:')).forEach(o=>o.remove());
   activeKpis().forEach(k=>s.append(new Option(k.label+' (high → low)','k:'+k.key)));
   if(pendingSort&&[...s.options].some(o=>o.value===pendingSort)){s.value=pendingSort;pendingSort=null}else s.value=[...s.options].some(o=>o.value===cur)?cur:'cost'}
 let pendingSort=null;
-function kpiChanged(){updateKpiCount();refreshSortOptions();renderKpiEditorPreviews();saveState();if(lastModel)render()}
-const kpiChangedSoon=debounce(kpiChanged,300);
-function renderKpiEditorPreviews(){$('kpiForms').querySelectorAll('tr[data-id]').forEach(tr=>{const f=kpiCfg.formulas.find(x=>x.id===tr.dataset.id);if(f)formulaPreview(tr,f)});
-  const ins=$('kpiInsert');if(ins&&METRICS.size)ins.innerHTML='<option value="">Insert a column…</option>'+[...METRICS.values()].map(m=>'<option>'+esc(m.name)+'</option>').join('')+kpiCfg.formulas.filter(f=>f.name.trim()).map(f=>'<option>'+esc(f.name.trim())+'</option>').join('')}
+function kpiChanged(rebuildMenu){updateKpiCount();refreshSortOptions();if(rebuildMenu!==false||true)renderKpiMenu();saveState();if(lastModel)render()}
+
 
 /* ============ custom groupings editor ============ */
 function uid(){return Math.random().toString(36).slice(2,9)}
