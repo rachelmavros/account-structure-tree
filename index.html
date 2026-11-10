@@ -121,6 +121,11 @@ table.tt td:empty{border-left-color:transparent;border-right-color:transparent}
 .cg-top label{font-size:13px;font-weight:600;display:flex;flex-direction:column;gap:4px}
 .cg-rules{width:100%;font-size:13px}.cg-rules td{padding:5px 6px}.cg-rules input{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid #d0d8e2;border-radius:6px}
 .cg-x{background:none;color:#b04a3a;border:none;font-size:16px;padding:2px 8px}
+#kpiHead{cursor:pointer;user-select:none}.kh{margin:14px 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#52606d}
+#kpiCols{display:flex;flex-direction:column;gap:6px}.kc{display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer}.kc input{margin-top:3px}
+#kpiForms td{vertical-align:middle}#kpiForms .kP{font-size:12px;line-height:1.35}
+.nd .kg{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;margin-top:3px}.nd .kc2{display:flex;gap:5px;min-width:0;font-size:11.5px;line-height:16px}.nd .kl{color:#7b8794;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.nd .kv{color:#1a4fa0;font-weight:600;white-space:nowrap;margin-left:auto}.nd.off .kv{color:#a7b1bd}
+.kwwrap{overflow-x:auto}
 .chip{display:inline-block;background:#fff;border:1px solid #d6e4fb;border-radius:20px;padding:2px 10px;margin:2px 4px 2px 0;font-size:12px}
 #cgPreview{margin-top:12px;font-size:13px;line-height:1.6}
 #cgPreview details{margin-top:6px}#cgPreview summary{cursor:pointer;color:#1a73e8}
@@ -168,6 +173,18 @@ table.tt td:empty{border-left-color:transparent;border-right-color:transparent}
   <label class="sel hastip"><span class="lbl">Keywords in tree <button type="button" class="info">i</button></span><span class="tip">“Summary card” shows one Keywords card per ad group — click it to see the full, searchable list in the side panel. Or list the top keywords right in the tree.</span><select id="kwMode"><option value="0">Summary card (list in panel)</option><option value="5">Top 5</option><option value="10">Top 10</option><option value="25">Top 25</option><option value="all">All</option></select></label>
   <label class="sel">Sort by<select id="sortSel"><option value="cost">Spend</option><option value="name">Name</option><option value="kws"># keywords</option></select></label>
  </div></div>
+</div>
+</div>
+
+<div class="card" id="kpiCard" style="display:none">
+<h3 id="kpiHead"><span id="kpiCaret">&#9656;</span> KPIs <span class="hint" style="font-weight:400">— pull in more columns from your files (clicks, CPC, conversions, custom columns…) or build your own formula</span> <span id="kpiOnCount" class="chip" style="display:none"></span></h3>
+<div id="kpiBody" style="display:none">
+ <h4 class="kh">Columns found in your files</h4>
+ <div id="kpiCols"></div>
+ <h4 class="kh">Custom formulas</h4>
+ <table class="cg-rules"><thead><tr><th style="width:20%">Name</th><th>Formula</th><th style="width:130px">Format</th><th style="width:210px">Account total</th><th style="width:50px">Show</th><th style="width:40px"></th></tr></thead><tbody id="kpiForms"></tbody></table>
+ <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px"><button class="secondary small" id="kpiAdd">+ Add formula</button><select id="kpiInsert" style="min-width:190px"><option value="">Insert a column…</option></select><span class="hint">Use [Column name], numbers and + − × ÷ ( ). Example: <b>[Cost] / [Appointment signups]</b></span></div>
+ <p class="hint">Counts (clicks, conversions, signups…) add up through ad groups and campaigns. Rates and “per” columns (CPC, CTR, cost per…) are recalculated from their parts at every level instead of being added or averaged.</p>
 </div>
 </div>
 
@@ -227,7 +244,7 @@ function parseNum(v){const n=parseFloat(String(v??'').replace(/[^0-9.\-]/g,''));
 /* ============ file reading ============ */
 $('file').onchange=async e=>{
   const files=[...e.target.files];if(!files.length)return;
-  kwRows=[];adRows=[];loadedFiles=[];reportDateRange='';
+  kwRows=[];adRows=[];loadedFiles=[];reportDateRange='';METRICS=new Map();
   for(const f of files){
     try{const rows=await readFile(f);ingest(f.name,rows)}
     catch(err){loadedFiles.push({name:f.name,kind:'error',msg:err.message})}
@@ -236,8 +253,9 @@ $('file').onchange=async e=>{
   if(!kwRows.length&&!adRows.length){setStatus("Couldn't find keyword or ad rows in that upload. Expecting a Google Ads keyword report and/or ad report.");return}
   expanded.clear();selectedId=null;
   buildCampaignFilter();
-  $('viewCard').style.display='block';$('cgCard').style.display='block';$('chartCard').style.display='block';
-  refreshGroupSelects();renderCgEditor();render();
+  finalizeMetrics();
+  $('viewCard').style.display='block';$('kpiCard').style.display='block';$('cgCard').style.display='block';$('chartCard').style.display='block';
+  refreshGroupSelects();renderCgEditor();renderKpiEditor();refreshSortOptions();render();renderKpiEditorPreviews();
 };
 function readFile(f){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=()=>rej(new Error('read failed'));r.onload=ev=>{try{const buf=new Uint8Array(ev.target.result);
   if(buf[0]===0x50&&buf[1]===0x4B){const wb=XLSX.read(buf,{type:'array'});const sh=wb.Sheets[wb.SheetNames[0]];return res(XLSX.utils.sheet_to_json(sh,{header:1,raw:false,defval:''}))}
@@ -267,6 +285,8 @@ function ingest(name,rows){
   const g=(r,n)=>{const i=col(n);return i>-1?String(r[i]??'').trim():''};
   const valid=r=>{const rt=String(r[0]||'').trim();if(/^total/i.test(rt))return false;const c=g(r,'Campaign');return c&&c!=='--'&&!/^total/i.test(c)};
   let count=0;
+  const mcols=(isKw||isAd)?detectMetrics(H,rows,hi,valid):[];registerMetrics(mcols,isKw);
+  const mOf=r=>{const o={};mcols.forEach(mc=>{o[mc.name]=parseMetric(r[mc.i],mc.pct)});return o};
   if(isKw){
     for(let i=hi+1;i<rows.length;i++){const r=rows[i];if(!valid(r))continue;
       const raw=g(r,'Keyword');if(!raw||raw==='--')continue;
@@ -274,7 +294,7 @@ function ingest(name,rows){
       const status=g(r,'Status'),reasons=g(r,'Status reasons'),kst=g(r,'Keyword status');
       kwRows.push({type:'kw',campaign:g(r,'Campaign'),adgroup:g(r,'Ad group'),raw,norm:normKw(raw),match:mt||'Broad',
         status,reasons,kwStatus:kst,cost:parseNum(g(r,'Cost')),maxCpc:g(r,'Max. CPC'),url:g(r,'Final URL'),
-        active:isActive(status,reasons,kst)});count++}
+        active:isActive(status,reasons,kst),m:mOf(r)});count++}
     loadedFiles.push({name,kind:'Keyword report',count})}
   else if(isAd){
     const hl=[],ds=[];
@@ -289,7 +309,7 @@ function ingest(name,rows){
       const sig=heads.map(h=>h.text+'#'+h.pos).sort().join('|')+'||'+descs.map(d=>d.text+'#'+d.pos).sort().join('|')+'||'+g(r,'Path 1')+'/'+g(r,'Path 2');
       adRows.push({type:'ad',campaign:g(r,'Campaign'),adgroup:g(r,'Ad group'),adType:g(r,'Ad type')||'Ad',heads,descs,
         path1:clean(g(r,'Path 1')),path2:clean(g(r,'Path 2')),url:g(r,'Final URL'),status,reasons,adStatus:ast,
-        cost:parseNum(g(r,'Cost')),campaignType:g(r,'Campaign type'),adId:g(r,'Ad ID'),sig,active:isActive(status,reasons,ast)});count++}
+        cost:parseNum(g(r,'Cost')),campaignType:g(r,'Campaign type'),adId:g(r,'Ad ID'),sig,active:isActive(status,reasons,ast),m:mOf(r)});count++}
     loadedFiles.push({name,kind:'Ad report',count})}
   else throw new Error('not a keyword or ad report (no Keyword/Match type or Ad type/Headline columns)');
 }
@@ -394,12 +414,15 @@ function buildModel(){
   recompute(root,kwCost);
   return{root,dims}}
 // rebuild every count from the leaves actually in the tree, so cards, panel and table always agree
+function leafMetrics(n){const m={};n.rows.forEach(r=>{for(const k in r.m){const x=r.m[k];if(x!=null)m[k]=(m[k]||0)+x}});n.m=m}
 function recompute(n,kwCost){
-  if(n.level==='kw'){n.kwLeafN=1;n.adLeafN=0;return}
-  if(n.level==='ad'){n.kwLeafN=0;n.adLeafN=1;return}
+  if(n.level==='kw'){n.kwLeafN=1;n.adLeafN=0;leafMetrics(n);return}
+  if(n.level==='ad'){n.kwLeafN=0;n.adLeafN=1;leafMetrics(n);return}
+  n.m={};
   Object.assign(n,{cost:0,kwRows:0,adRows:0,kwSet:new Set(),matchSet:new Set(),campSet:new Set(),agSet:new Set(),act:0,tot:0,kwLeafN:0,adLeafN:0});
   for(const c of n.kids.values()){recompute(c,kwCost);
     if(!(c.level==='ad'&&kwCost))n.cost+=c.cost;
+    for(const k in c.m){const meta=METRICS.get(k);if(!meta||meta.kind!=='sum')continue;if(c.level==='ad'&&meta.inKw&&kwCost)continue;n.m[k]=(n.m[k]||0)+c.m[k]}
     n.kwRows+=c.kwRows;n.adRows+=c.adRows;n.act+=c.act;n.tot+=c.tot;n.kwLeafN+=c.kwLeafN;n.adLeafN+=c.adLeafN;
     c.kwSet.forEach(x=>n.kwSet.add(x));c.matchSet.forEach(x=>n.matchSet.add(x));c.campSet.forEach(x=>n.campSet.add(x));c.agSet.forEach(x=>n.agSet.add(x))}}
 function prune(n){for(const[k,c]of n.kids){prune(c);if(c.level!=='ad'&&c.cost<=0)n.kids.delete(k)}}
@@ -429,6 +452,7 @@ function sortKids(arr){const s=$('sortSel').value;return arr.sort((a,b)=>{
   if(a.level!==b.level)return a.level==='ad'?-1:1;
   if(s==='name')return displayName(a).localeCompare(displayName(b));
   if(s==='kws')return(kwCount(b)-kwCount(a))||(b.cost-a.cost);
+  if(s.startsWith('k:')){const k=activeKpis().find(x=>'k:'+x.key===s);if(k){const va=k.get(a),vb=k.get(b);if(va==null&&vb!=null)return 1;if(vb==null&&va!=null)return -1;if(va!==vb)return (vb||0)-(va||0)}}
   return(b.cost-a.cost)||displayName(a).localeCompare(displayName(b))})}
 function adItems(n){return $('tAds').checked?sortKids(adLeaves(n)):[]}
 function kwItems(n){
@@ -442,10 +466,11 @@ function isOpen(n){if(expanded.has(n.id))return expanded.get(n.id);let r=RANK[n.
 
 /* ============ layout: left → right, one column per layer ============ */
 const GAP=56,TOP=40;
-const dimsCard=()=>showDetails()?{H:50,ROW:66}:{H:32,ROW:42};
+const dimsCard=()=>{if(!showDetails())return{H:32,ROW:42};const n=activeKpis().length,H=50+(n?Math.ceil(n/2)*16+3:0);return{H,ROW:H+16}};
 function colSpec(dims){
-  const cols=[{label:'Account',w:210,key:'root'}];
-  dims.forEach(d=>cols.push({label:dimLabel(d),w:250,key:'group'}));
+  const wide=showDetails()&&activeKpis().length>0;
+  const cols=[{label:'Account',w:wide?300:210,key:'root'}];
+  dims.forEach(d=>cols.push({label:dimLabel(d),w:wide?300:250,key:'group'}));
   cols.push({label:'Campaign',w:410,key:'campaign'});
   if(showAG())cols.push({label:'Ad group',w:290,key:'adgroup'});
   if($('tAds').checked)cols.push({label:'Ads',w:300,key:'ads'});
@@ -531,7 +556,7 @@ function drawTree(model){
     const bar=det&&sp&&share>0?'<div class="bar"><i style="width:'+Math.max(3,share*100).toFixed(1)+'%"></i></div>':'';
     const inlineMt=!det&&n.level==='kw'?'<span class="mt">'+esc(matchTypes(n.matchSet))+'</span>':'';
     const title=n.synthetic?'':(n.level==='campaign'&&n.campSet.size>1?n.key+'\n'+[...n.campSet].join('\n'):displayName(n));
-    html.push('<div class="'+cls.join(' ')+'" data-id="'+esc(n.id)+'" title="'+esc(title)+'" style="left:'+it.x+'px;top:'+it.y+'px;width:'+it.w+'px;height:'+CARD_H+'px;--c:'+it.color+'"><span class="dot" style="width:'+ds+'px;height:'+ds+'px"></span><div class="t"><span class="tx">'+esc(t)+'</span>'+(tag?'<span class="dup" title="Duplicates merged into this card">'+tag+'</span>':'')+inlineMt+'</div>'+(det?'<div class="m">'+esc(m)+'</div>':'')+(tog?'<span class="tog">'+tog+'</span>':'')+bar+'</div>')});
+    html.push('<div class="'+cls.join(' ')+'" data-id="'+esc(n.id)+'" title="'+esc(title)+'" style="left:'+it.x+'px;top:'+it.y+'px;width:'+it.w+'px;height:'+CARD_H+'px;--c:'+it.color+'"><span class="dot" style="width:'+ds+'px;height:'+ds+'px"></span><div class="t"><span class="tx">'+esc(t)+'</span>'+(tag?'<span class="dup" title="Duplicates merged into this card">'+tag+'</span>':'')+inlineMt+'</div>'+(det?'<div class="m">'+esc(m)+'</div>':'')+(det&&!n.synthetic&&activeKpis().length?'<div class="kg">'+activeKpis().map(k=>'<span class="kc2" title="'+esc(k.label)+'"><span class="kl">'+esc(k.label)+'</span><span class="kv">'+esc(fmtKpi(k.get(n),k.fmt))+'</span></span>').join('')+'</div>':'')+(tog?'<span class="tog">'+tog+'</span>':'')+bar+'</div>')});
   $('cards').innerHTML=html.join('');
   // connectors: rounded elbows; ad group → ad → keywords reads as one straight line
   const P=[],mid=it=>it.y+CARD_H/2,R=10;
@@ -606,19 +631,19 @@ function showDetail(){
   let h='';kwPanelList=[];
   if(n.level==='kw'){
     h=crumb+'<h4>'+esc(n.key)+'</h4>'+badgeHTML(n.matchSet);
-    h+=kv([sp&&['Spend',fmt$(n.cost)],['Status',statusTxt],['Appears',plural(n.rows.length,'time')]]);
+    h+=kv([sp&&['Spend',fmt$(n.cost)],...kpiPairs(n),['Status',statusTxt],['Appears',plural(n.rows.length,'time')]]);
     h+='<table><thead><tr><th>Campaign / ad group</th><th>Match type</th>'+(sp?'<th class="num">Spend</th>':'')+'</tr></thead><tbody>'+n.rows.slice(0,200).map(r=>'<tr style="'+(r.active?'':'color:#8a97a6')+'"><td>'+esc(r.campaign)+'<br><span class="hint">'+esc(r.adgroup)+' · '+esc(r.status)+(r.reasons?' ('+esc(r.reasons)+')':'')+'</span></td><td>'+esc(r.match)+'</td>'+(sp?'<td class="num">'+fmt$(r.cost)+'</td>':'')+'</tr>').join('')+'</tbody></table>';
     if(n.rows[0]&&n.rows[0].url)h+='<p class="hint url">Final URL: '+urlLink(n.rows[0].url)+'</p>';
   }else if(n.level==='ad'){
     const r=n.rows[0];
-    h=crumb+'<h4>'+esc(r.adType)+'</h4>'+kv([sp&&['Spend',fmt$(n.cost)],['Status',statusTxt],['Copies',n.rows.length],['Display path',esc([r.path1,r.path2].filter(Boolean).join('/')||'—')],r.url&&['Final URL','<span class="url">'+urlLink(r.url)+'</span>']]);
+    h=crumb+'<h4>'+esc(r.adType)+'</h4>'+kv([sp&&['Spend',fmt$(n.cost)],...kpiPairs(n),['Status',statusTxt],['Copies',n.rows.length],['Display path',esc([r.path1,r.path2].filter(Boolean).join('/')||'—')],r.url&&['Final URL','<span class="url">'+urlLink(r.url)+'</span>']]);
     h+='<div class="sec"><h5>Headlines ('+r.heads.length+')</h5><ol>'+r.heads.map(x=>'<li>'+esc(x.text)+(x.pos?'<span class="pin">pin '+x.pos+'</span>':'')+' <span class="hint">'+x.text.length+'</span></li>').join('')+'</ol></div>';
     h+='<div class="sec"><h5>Descriptions ('+r.descs.length+')</h5><ol>'+r.descs.map(x=>'<li>'+esc(x.text)+(x.pos?'<span class="pin">pin '+x.pos+'</span>':'')+' <span class="hint">'+x.text.length+'</span></li>').join('')+'</ol></div>';
     h+='<div class="sec"><h5>Runs in</h5><ul style="padding-left:18px;margin:4px 0">'+n.rows.slice(0,60).map(x=>'<li style="'+(x.active?'':'color:#8a97a6')+'">'+esc(x.campaign)+' › '+esc(x.adgroup)+(sp?' — '+fmt$(x.cost):'')+'</li>').join('')+'</ul></div>';
   }else{ // ad group (or campaign-wide) keyword list
     const kc=kwCount(n),uq=uniqKw(n);
     h=crumb+'<h4>'+esc(displayName(n))+'</h4><span class="hint">'+(n.key==='__all'?'All keywords in this campaign':'Ad group keywords')+'</span>';
-    h+=kv([sp&&['Spend',fmt$(n.cost)],['Status',statusTxt],['Keywords',fmtN(kc)+(uq!==kc?' ('+fmtN(uq)+' unique texts — same text in more than one match type)':'')],n.matchSet.size&&['Match types',badgeHTML(n.matchSet)]]);
+    h+=kv([sp&&['Spend',fmt$(n.cost)],...kpiPairs(n),['Status',statusTxt],['Keywords',fmtN(kc)+(uq!==kc?' ('+fmtN(uq)+' unique texts — same text in more than one match type)':'')],n.matchSet.size&&['Match types',badgeHTML(n.matchSet)]]);
     kwPanelList=kwLeaves(n).map(leaf=>({leaf}));
     const s=$('sortSel').value;kwPanelList.sort((a,b)=>s==='name'?a.leaf.key.localeCompare(b.leaf.key):(b.leaf.cost-a.leaf.cost)||a.leaf.key.localeCompare(b.leaf.key));
     h+='<div class="sec"><h5><span>Keyword list</span><button class="secondary small" id="kwCopy" title="Copy the listed keywords">Copy</button></h5><input type="text" id="kwSearch" placeholder="Search these keywords…"><div id="kwList"></div></div>';
@@ -628,13 +653,14 @@ function showDetail(){
   if($('kwSearch')){$('kwSearch').value=keepQ;$('kwSearch').oninput=debounce(drawKwList,150);
     $('kwCopy').onclick=()=>{const t=filteredKw().map(x=>x.leaf.key).join('\n');if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>{$('kwCopy').textContent='Copied';setTimeout(()=>{if($('kwCopy'))$('kwCopy').textContent='Copy'},1200)})};
     drawKwList()}}
+function kpiPairs(n){return activeKpis().map(k=>[esc(k.label),esc(fmtKpi(k.get(n),k.fmt))])}
 function filteredKw(){const q=($('kwSearch')?.value||'').trim().toLowerCase();return q?kwPanelList.filter(x=>x.leaf.key.includes(q)):kwPanelList}
 function drawKwList(){
-  const sp=spendOn(),list=filteredKw(),CAP=400;
+  const sp=spendOn(),list=filteredKw(),CAP=400,K=activeKpis();
   if(!list.length){$('kwList').innerHTML='<p class="hint">No keywords match.</p>';return}
-  let h='<p class="hint" style="margin:0 0 6px">'+(list.length===kwPanelList.length?'All '+fmtN(list.length):fmtN(list.length)+' of '+fmtN(kwPanelList.length))+' keywords</p><table><thead><tr><th>Keyword</th><th>Match type</th>'+(sp?'<th class="num">Spend</th>':'')+'</tr></thead><tbody>';
-  list.slice(0,CAP).forEach(({leaf})=>{h+='<tr style="'+(leaf.act===0?'color:#8a97a6':'')+'"><td>'+esc(leaf.key)+'</td><td>'+badgeHTML(leaf.matchSet)+'</td>'+(sp?'<td class="num">'+fmt$(leaf.cost)+'</td>':'')+'</tr>'});
-  h+='</tbody></table>';
+  let h='<p class="hint" style="margin:0 0 6px">'+(list.length===kwPanelList.length?'All '+fmtN(list.length):fmtN(list.length)+' of '+fmtN(kwPanelList.length))+' keywords</p><div class="kwwrap"><table><thead><tr><th>Keyword</th><th>Match type</th>'+(sp?'<th class="num">Spend</th>':'')+K.map(k=>'<th class="num">'+esc(k.label)+'</th>').join('')+'</tr></thead><tbody>';
+  list.slice(0,CAP).forEach(({leaf})=>{h+='<tr style="'+(leaf.act===0?'color:#8a97a6':'')+'"><td>'+esc(leaf.key)+'</td><td>'+badgeHTML(leaf.matchSet)+'</td>'+(sp?'<td class="num">'+fmt$(leaf.cost)+'</td>':'')+K.map(k=>'<td class="num">'+esc(fmtKpi(k.get(leaf),k.fmt))+'</td>').join('')+'</tr>'});
+  h+='</tbody></table></div>';
   if(list.length>CAP)h+='<p class="hint">Showing '+CAP+' of '+fmtN(list.length)+'. Search to narrow, or use the Excel download for the full list.</p>';
   $('kwList').innerHTML=h}
 
@@ -657,7 +683,7 @@ let hiddenCols=new Set();
 function summaryCols(model){
   const lvl=$('tblLevel').value,sp=spendOn(),agCol=showAG()&&lvl!=='campaign',adCol=lvl==='ad';
   const names=[...model.dims.map(dimLabel),'Campaign',...(agCol?['Ad group']:[]),...(adCol?['Ad']:[])];
-  const avail=['Status',...(sp?['Spend','% of total']:[]),...(lvl==='campaign'&&showAG()?['Ad groups']:[]),'Keywords','Match types',...(adCol?['Headlines','Descriptions']:['Ads'])];
+  const avail=['Status',...(sp?['Spend','% of total']:[]),...(lvl==='campaign'&&showAG()?['Ad groups']:[]),'Keywords','Match types',...(adCol?['Headlines','Descriptions']:['Ads']),...activeKpis().map(k=>k.label)];
   const stats=avail.filter(h=>!hiddenCols.has(h));
   return{dims:model.dims,agCol,adCol,sp,lvl,names,avail,stats,head:[...names,...stats]}}
 function statVal(h,n,total,kwNode){
@@ -671,7 +697,8 @@ function statVal(h,n,total,kwNode){
     case 'Match types':return matchTypes((kwNode||n).matchSet);
     case 'Ads':return n.adLeafN||0;
     case 'Headlines':return isAd?n.rows[0].heads.length:null;
-    case 'Descriptions':return isAd?n.rows[0].descs.length:null}return ''}
+    case 'Descriptions':return isAd?n.rows[0].descs.length:null}
+  const k=activeKpis().find(x=>x.label===h);return k?k.get(n):''}
 function summaryValues(r,C,total){
   const n=r.n,isAd=r.kind==='ad',kwNode=r.ag||r.camp;
   const v=[...C.dims.map((d,i)=>r.groups[i]?r.groups[i].name:''),displayName(r.camp)+(r.camp.campSet.size>1?' ×'+r.camp.campSet.size:'')];
@@ -685,9 +712,10 @@ function drawColToggles(C){
 function drawSummary(model){
   const total=model.root.cost,C=summaryCols(model),rows=summaryRows(model),nd=C.dims.length,nn=C.names.length;
   drawColToggles(C);
-  const NUM=new Set(['Spend','% of total','Ad groups','Keywords','Ads','Headlines','Descriptions']);
+  const KP=new Map(activeKpis().map(k=>[k.label,k]));
+  const NUM=new Set(['Spend','% of total','Ad groups','Keywords','Ads','Headlines','Descriptions',...KP.keys()]);
   const isNum=i=>NUM.has(C.head[i]);
-  const fmtCell=(h,v)=>v==null?'':h==='Spend'?fmt$(v):h==='% of total'?(v*100).toFixed(1)+'%':typeof v==='number'?fmtN(v):esc(v);
+  const fmtCell=(h,v)=>KP.has(h)?esc(fmtKpi(v,KP.get(h).fmt)):v==null?'':h==='Spend'?fmt$(v):h==='% of total'?(v*100).toFixed(1)+'%':typeof v==='number'?fmtN(v):esc(v);
   const V=rows.map(r=>summaryValues(r,C,total));
   // merge a repeated campaign / ad group name into one tall cell instead of repeating it
   const mergeCols=[];for(let i=nd;i<nd+1+(C.agCol?1:0);i++)mergeCols.push(i);
@@ -720,8 +748,139 @@ function settingsPairs(model){
     ['De-duplicated',merges.length?merges.join(', '):'(none)'],
     ['Status',$('statusSel').selectedOptions[0].text],['Text contains',$('containsFilter').value||'(none)'],
     ['Showing',[on('tAG')&&'Ad groups',on('tAds')&&'Ads',on('tKws')&&'Keywords'].filter(Boolean).join(' + ')||'Campaigns only'],
-    ['Hide $0 spend',on('tZero')?'Yes':'No'],spendOn()&&['Total spend',fmt$(model.root.cost)]].filter(Boolean)}
+    ['Hide $0 spend',on('tZero')?'Yes':'No'],activeKpis().length&&['KPIs',activeKpis().map(k=>k.label).join(', ')],spendOn()&&['Total spend',fmt$(model.root.cost)]].filter(Boolean)}
 function drawSettings(model){$('settingsCard').style.display='block';$('settingsBody').innerHTML=settingsPairs(model).map(([k,v])=>'<strong>'+k+':</strong> '+(k==='Campaigns'&&selectedCampaigns.size!==campaignNames.length?[...selectedCampaigns].sort().map(c=>'<span class="chip">'+esc(c)+'</span>').join(''):esc(v))).join(' &middot; ')}
+
+/* ============ KPIs: extra metric columns from the files + custom formulas ============ */
+let METRICS=new Map();            // name -> {name,pct,cur,inKw,inAd,kind:'sum'|'ratio',rollup,rollupFn}
+let kpiCfg={cols:[],formulas:[]}; // cols: column names switched on; formulas: [{id,name,expr,fmt,on}]
+const NOT_METRIC=/(^|\s)id$|\bid\b|customer id|position|currency|url|template|parameter|suffix|max\.?\s*cpc|bid|budget|status|type|^keyword$|^ad group$|^campaign$|headline|description|path|label|^row type$|^action$|phone|country/i;
+const NUMRX=/^\s*[-+]?[$€£]?\s*-?[\d,]*\.?\d+\s*%?\s*$/;
+const RATIO_RX=/(^|\W)(avg\.?|average|cpc|cpm|cpa|cpv|ctr|roas|rate|share|score|per)(\W|$)|\/|%/i;
+function detectMetrics(H,rows,hi,valid){
+  const out=[];
+  H.forEach((name,i)=>{if(!name||NOT_METRIC.test(name))return;
+    let n=0,num=0,pct=0,cur=0;
+    for(let r=hi+1;r<rows.length&&n<3000;r++){const row=rows[r];if(!valid(row))continue;const v=String(row[i]??'').trim();if(!v||v==='--')continue;n++;if(NUMRX.test(v)){num++;if(v.includes('%'))pct++;if(/[$€£]/.test(v))cur++}}
+    if(!n||num/n<.9)return;
+    out.push({i,name,pct:pct>0,cur:cur>0||/cost|cpc|cpm|cpa|cpv|value|revenue|spend/i.test(name)})});
+  return out}
+function parseMetric(v,pct){v=String(v??'').trim();if(!v||v==='--')return null;const n=parseFloat(v.replace(/[^0-9.\-]/g,''));if(isNaN(n))return null;return pct||v.includes('%')?n/100:n}
+function registerMetrics(list,isKw){list.forEach(mc=>{const m=METRICS.get(mc.name)||{name:mc.name,pct:false,cur:false,inKw:false,inAd:false};m.pct=m.pct||mc.pct;m.cur=m.cur||mc.cur;if(isKw)m.inKw=true;else m.inAd=true;METRICS.set(mc.name,m)})}
+const normName=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'').replace(/s$/,'');
+function metricByName(s){const k=String(s).trim().toLowerCase();for(const m of METRICS.values())if(m.name.toLowerCase()===k)return m;return null}
+function fuzzyMetric(s){const k=normName(s);if(k.length<3)return null;let best=null;
+  for(const m of METRICS.values()){if(m.kind!=='sum')continue;const t=normName(m.name);if(t===k)return m.name;if(!best&&(t.includes(k)||k.includes(t))&&Math.min(t.length,k.length)>=4)best=m.name}return best}
+function deriveRollup(name){
+  const find=(...res)=>{for(const m of METRICS.values()){if(m.kind!=='sum')continue;if(res.some(re=>re.test(m.name)))return m.name}return null};
+  const n=name.toLowerCase(),q=s=>'['+s+']';
+  const cost=find(/^cost$/i,/^spend$/i),clicks=find(/^clicks$/i),impr=find(/^impr(\.|essions)?$/i),conv=find(/^conv(\.|ersions)$/i,/^conversions$/i),val=find(/^(total )?conv\.? value$/i,/^conversion value$/i,/^revenue$/i);
+  if(/cpc/.test(n)&&cost&&clicks)return q(cost)+' / '+q(clicks);
+  if(/ctr/.test(n)&&clicks&&impr)return q(clicks)+' / '+q(impr);
+  if(/cpm/.test(n)&&cost&&impr)return q(cost)+' / '+q(impr)+' * 1000';
+  if(/conv.*rate|conversion rate/.test(n)&&conv&&clicks)return q(conv)+' / '+q(clicks);
+  if(/roas|value\s*\/\s*cost/.test(n)&&val&&cost)return q(val)+' / '+q(cost);
+  if(/cost\s*\/\s*conv|cost per conv|^cpa$/.test(n)&&cost&&conv)return q(cost)+' / '+q(conv);
+  const m=name.match(/^(.+?)\s*(?:\/|\bper\b)\s*(.+)$/i);
+  if(m){const a=fuzzyMetric(m[1]),b=fuzzyMetric(m[2]);if(a&&b&&a!==name&&b!==name)return q(a)+' / '+q(b)}
+  return null}
+function finalizeMetrics(){
+  METRICS.forEach(m=>{m.kind=/^cost$/i.test(m.name)?'sum':(m.pct||RATIO_RX.test(m.name))?'ratio':'sum'});
+  METRICS.forEach(m=>{m.rollup=null;m.rollupFn=null;if(m.kind==='ratio'){m.rollup=deriveRollup(m.name);if(m.rollup){const c=compileExpr(m.rollup);if(!c.error)m.rollupFn=c.fn}}})}
+function formulaByName(s){const k=String(s).trim().toLowerCase();return kpiCfg.formulas.find(f=>f.name.trim().toLowerCase()===k)}
+// formulas: [Column name], numbers, + - * / ( ); compiled into a function of a lookup — nothing else is allowed through
+function compileExpr(expr,selfName){
+  const s=String(expr||'').replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').trim();
+  if(!s)return{error:'Type a formula, e.g. [Cost] / [Clicks]'};
+  const re=/\s*(?:\[([^\]]+)\]|(\d*\.?\d+)|([-+*/()]))/y;let out='',pos=0;const refs=[];
+  while(pos<s.length){re.lastIndex=pos;const m=re.exec(s);
+    if(!m){if(/^\s*$/.test(s.slice(pos)))break;return{error:'Can’t read “'+s.slice(pos).trim().slice(0,14)+'”. Use [Column name], numbers and + − × ÷ ( ).'}}
+    pos=re.lastIndex;
+    if(m[1]!=null){const nm=m[1].trim(),col=metricByName(nm),f=formulaByName(nm);
+      if(selfName&&nm.toLowerCase()===selfName.trim().toLowerCase())return{error:'A formula can’t use itself.'};
+      if(!col&&!f)return{error:'No column or formula called ['+nm+'] in these files.'};
+      const canon=col?col.name:f.name;refs.push(canon);out+='v('+JSON.stringify((col?'c:':'f:')+canon)+')'}
+    else if(m[2]!=null)out+=m[2];else out+=m[3]}
+  let fn;try{fn=new Function('v','"use strict";return ('+out+');');fn(()=>1)}catch(e){return{error:'The formula isn’t complete — check the brackets and operators.'}}
+  return{fn,refs}}
+const NA={};
+function runExpr(fn,node,depth){
+  if(!fn||(depth||0)>6)return null;
+  const v=k=>{const x=k.startsWith('c:')?colVal(node,k.slice(2)):formulaVal(node,formulaByName(k.slice(2)),(depth||0)+1);if(x==null||!isFinite(x))throw NA;return x};
+  try{const r=fn(v);return isFinite(r)?r:null}catch(e){return null}}
+function colVal(node,name){
+  const m=METRICS.get(name);if(!m||!node||node.synthetic)return null;
+  if(m.kind==='sum'){const x=node.m&&node.m[name];return x==null?null:x}
+  if(m.rollupFn)return runExpr(m.rollupFn,node);
+  if((node.level==='kw'||node.level==='ad')&&node.rows.length===1){const x=node.rows[0].m&&node.rows[0].m[name];return x==null?null:x}
+  return null}
+function formulaVal(node,f,depth){if(!f)return null;if(!f._c||f._src!==f.expr+'|'+f.name){f._c=compileExpr(f.expr,f.name);f._src=f.expr+'|'+f.name}return f._c.error?null:runExpr(f._c.fn,node,depth)}
+function fmtOf(k){return k.fmt}
+// the KPIs currently switched on, in order: file columns, then formulas
+function activeKpis(){
+  const out=[];
+  kpiCfg.cols.forEach(name=>{const m=METRICS.get(name);if(m)out.push({key:'c:'+name,label:name,fmt:m.pct?'pct':m.cur?'cur':'num',get:n=>colVal(n,name)})});
+  kpiCfg.formulas.forEach(f=>{if(!f.on||!f.name.trim())return;const c=compileExpr(f.expr,f.name);if(c.error)return;
+    let fmt=f.fmt||'auto';if(fmt==='auto'){const r0=c.refs[0]&&metricByName(c.refs[0]),denomCur=c.refs.slice(1).some(r=>{const m=metricByName(r);return m&&m.cur});fmt=r0&&r0.cur&&!denomCur?'cur':'num'}
+    out.push({key:'f:'+f.id,label:f.name.trim(),fmt,get:n=>formulaVal(n,f)})});
+  return out}
+function fmtKpi(v,fmt){
+  if(v==null||!isFinite(v))return '—';
+  if(fmt==='cur')return (v<0?'-':'')+'$'+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(fmt==='pct')return (v*100).toLocaleString(undefined,{maximumFractionDigits:2})+'%';
+  return Math.abs(v-Math.round(v))<1e-9?Math.round(v).toLocaleString():v.toLocaleString(undefined,{maximumFractionDigits:2})}
+const kpiFmtExcel=f=>f==='cur'?'$#,##0.00':f==='pct'?'0.00%':'#,##0.##';
+function kpiLine(n){const K=activeKpis();if(!K.length||n.synthetic)return '';return K.map(k=>k.label+' '+fmtKpi(k.get(n),k.fmt)).join(' · ')}
+
+/* ---- KPI editor ---- */
+function openKpi(open){$('kpiBody').style.display=open?'block':'none';$('kpiCaret').innerHTML=open?'&#9662;':'&#9656;'}
+$('kpiHead').onclick=()=>openKpi($('kpiBody').style.display==='none');
+let lastFormulaInput=null;
+function renderKpiEditor(){
+  const cols=[...METRICS.values()].filter(m=>!/^cost$/i.test(m.name));
+  const src=m=>m.inKw&&m.inAd?'both reports':m.inKw?'keyword report':'ad report';
+  const how=m=>m.kind==='sum'?'adds up':m.rollup?'recalculated as '+m.rollup.replace(/\[|\]/g,'').replace(/ \/ /g,' ÷ '):'per keyword / ad only — add a formula to roll it up';
+  $('kpiCols').innerHTML=cols.length?cols.map(m=>'<label class="kc"><input type="checkbox" data-col="'+esc(m.name)+'"'+(kpiCfg.cols.includes(m.name)?' checked':'')+'><span><b>'+esc(m.name)+'</b><span class="hint"> · '+esc(src(m))+' · '+esc(how(m))+'</span></span></label>').join('')
+    :'<p class="hint" style="margin:0">Only <b>Cost</b> was found in these files. Add columns like Clicks, Impr., Conversions or your custom columns to the engine download and they’ll show up here. You can still build formulas from [Cost].</p>';
+  $('kpiCols').querySelectorAll('input').forEach(cb=>cb.onchange=()=>{const nm=cb.dataset.col;kpiCfg.cols=kpiCfg.cols.filter(x=>x!==nm);if(cb.checked){const order=[...METRICS.keys()];kpiCfg.cols.push(nm);kpiCfg.cols.sort((a,b)=>order.indexOf(a)-order.indexOf(b))}kpiChanged()});
+  const ins=$('kpiInsert');ins.innerHTML='<option value="">Insert a column…</option>'+[...METRICS.values()].map(m=>'<option>'+esc(m.name)+'</option>').join('')+kpiCfg.formulas.filter(f=>f.name.trim()).map(f=>'<option>'+esc(f.name.trim())+'</option>').join('');
+  $('kpiForms').innerHTML='';kpiCfg.formulas.forEach(f=>addFormulaRow(f));
+  if(!kpiCfg.formulas.length)$('kpiForms').innerHTML='<tr class="empty"><td colspan="6" class="hint">No formulas yet. Click “+ Add formula”.</td></tr>';
+  updateKpiCount()}
+function addFormulaRow(f){
+  const tb=$('kpiForms');tb.querySelector('tr.empty')?.remove();
+  const tr=document.createElement('tr');tr.dataset.id=f.id;
+  tr.innerHTML='<td><input class="kN" placeholder="e.g. Cost per signup"></td><td><input class="kE" placeholder="e.g. [Cost] / [Appointment signups]"></td><td><select class="kF"><option value="auto">Auto</option><option value="cur">$ Currency</option><option value="pct">% Percent</option><option value="num">Number</option></select></td><td class="kP hint"></td><td style="text-align:center"><input type="checkbox" class="kO"></td><td><button class="cg-x" title="Delete formula">×</button></td>';
+  tr.querySelector('.kN').value=f.name;tr.querySelector('.kE').value=f.expr;tr.querySelector('.kF').value=f.fmt||'auto';tr.querySelector('.kO').checked=f.on!==false;
+  const sync=()=>{f.name=tr.querySelector('.kN').value;f.expr=tr.querySelector('.kE').value;f.fmt=tr.querySelector('.kF').value;f.on=tr.querySelector('.kO').checked;formulaPreview(tr,f);kpiChangedSoon()};
+  tr.querySelectorAll('input.kN,input.kE').forEach(i=>{i.oninput=sync;i.onfocus=()=>{if(i.classList.contains('kE'))lastFormulaInput=i}});
+  tr.querySelector('.kF').onchange=sync;tr.querySelector('.kO').onchange=sync;
+  tr.querySelector('.cg-x').onclick=()=>{kpiCfg.formulas=kpiCfg.formulas.filter(x=>x!==f);renderKpiEditor();kpiChanged()};
+  tb.append(tr);formulaPreview(tr,f);return tr}
+function formulaPreview(tr,f){
+  const p=tr.querySelector('.kP');
+  if(!f.expr.trim()){p.textContent='';return}
+  const c=compileExpr(f.expr,f.name);
+  if(c.error){p.innerHTML='<span style="color:#b04a3a">'+esc(c.error)+'</span>';return}
+  if(!lastModel){p.textContent='✓';return}
+  const k=activeKpis().find(x=>x.key==='f:'+f.id);const fmt=k?k.fmt:(f.fmt==='auto'?'num':f.fmt);
+  p.innerHTML='<span style="color:#1a7f37">✓</span> '+esc(fmtKpi(formulaVal(lastModel.root,f),fmt))+(f.name.trim()?'':' <span style="color:#a36b00">· give it a name</span>')}
+$('kpiAdd').onclick=()=>{const f={id:uid(),name:'',expr:'',fmt:'auto',on:true};kpiCfg.formulas.push(f);const tr=addFormulaRow(f);tr.querySelector('.kN').focus();lastFormulaInput=tr.querySelector('.kE');updateKpiCount()};
+$('kpiInsert').onchange=()=>{const nm=$('kpiInsert').value;$('kpiInsert').value='';if(!nm)return;
+  let inp=lastFormulaInput&&document.body.contains(lastFormulaInput)?lastFormulaInput:null;
+  if(!inp){$('kpiAdd').click();inp=lastFormulaInput}
+  const s=inp.selectionStart??inp.value.length,e=inp.selectionEnd??inp.value.length,t='['+nm+']';
+  inp.value=inp.value.slice(0,s)+t+inp.value.slice(e);inp.focus();inp.setSelectionRange(s+t.length,s+t.length);inp.dispatchEvent(new Event('input'))};
+function updateKpiCount(){const n=activeKpis().length;$('kpiOnCount').textContent=n?n+' on':'';$('kpiOnCount').style.display=n?'':'none'}
+function refreshSortOptions(){
+  const s=$('sortSel'),cur=s.value;[...s.options].filter(o=>o.value.startsWith('k:')).forEach(o=>o.remove());
+  activeKpis().forEach(k=>s.append(new Option(k.label+' (high → low)','k:'+k.key)));
+  if(pendingSort&&[...s.options].some(o=>o.value===pendingSort)){s.value=pendingSort;pendingSort=null}else s.value=[...s.options].some(o=>o.value===cur)?cur:'cost'}
+let pendingSort=null;
+function kpiChanged(){updateKpiCount();refreshSortOptions();renderKpiEditorPreviews();saveState();if(lastModel)render()}
+const kpiChangedSoon=debounce(kpiChanged,300);
+function renderKpiEditorPreviews(){$('kpiForms').querySelectorAll('tr[data-id]').forEach(tr=>{const f=kpiCfg.formulas.find(x=>x.id===tr.dataset.id);if(f)formulaPreview(tr,f)});
+  const ins=$('kpiInsert');if(ins&&METRICS.size)ins.innerHTML='<option value="">Insert a column…</option>'+[...METRICS.values()].map(m=>'<option>'+esc(m.name)+'</option>').join('')+kpiCfg.formulas.filter(f=>f.name.trim()).map(f=>'<option>'+esc(f.name.trim())+'</option>').join('')}
 
 /* ============ custom groupings editor ============ */
 function uid(){return Math.random().toString(36).slice(2,9)}
@@ -767,11 +926,13 @@ $('cgImport').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
 
 /* ============ persistence ============ */
 const VIEW_IDS=['tblLevel','tMatch','tYear','tMarket','tDetails','tSpend','tAG','tAds','tKws','tZero','statusSel','expandSel','sortSel','kwMode','g1','g2'];
-function saveState(){try{const v={};VIEW_IDS.forEach(id=>{const el=$(id);v[id]=el.type==='checkbox'?el.checked:el.value});localStorage.setItem(LS,JSON.stringify({customGroups,view:v,hiddenCols:[...hiddenCols]}))}catch(e){}}
+function saveState(){try{const v={};VIEW_IDS.forEach(id=>{const el=$(id);v[id]=el.type==='checkbox'?el.checked:el.value});localStorage.setItem(LS,JSON.stringify({customGroups,view:v,hiddenCols:[...hiddenCols],kpiCfg:{cols:kpiCfg.cols,formulas:kpiCfg.formulas.map(f=>({id:f.id,name:f.name,expr:f.expr,fmt:f.fmt,on:f.on}))}}))}catch(e){}}
 function restoreState(){let st=null;try{st=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){}
   customGroups=st&&Array.isArray(st.customGroups)?st.customGroups:[starterGrouping()];
   refreshGroupSelects();
   if(st&&Array.isArray(st.hiddenCols))hiddenCols=new Set(st.hiddenCols);
+  if(st&&st.kpiCfg){kpiCfg={cols:Array.isArray(st.kpiCfg.cols)?st.kpiCfg.cols:[],formulas:Array.isArray(st.kpiCfg.formulas)?st.kpiCfg.formulas:[]}}
+  if(st&&st.view&&String(st.view.sortSel||'').startsWith('k:'))pendingSort=st.view.sortSel;
   if(st&&st.view)VIEW_IDS.forEach(id=>{const el=$(id);if(!(id in st.view))return;if(el.type==='checkbox')el.checked=st.view[id];else if([...el.options].some(o=>o.value===st.view[id]))el.value=st.view[id]})}
 
 /* ============ wiring ============ */
@@ -833,15 +994,15 @@ async function downloadXLSX(){
   const s=wb.addWorksheet('Settings');s.addRow(['Report settings']).getCell(1).font={bold:true,size:13,color:{argb:'FF1A4FA0'}};
   settingsPairs(model).forEach(p=>{const r=s.addRow(p);r.getCell(1).font={bold:true,color:{argb:'FF1A4FA0'}}});s.columns=[{width:22},{width:90}];
   const C=summaryCols(model),sv=wb.addWorksheet('Summary');head(sv,C.head);
-  summaryRows(model).forEach(r=>{const row=sv.addRow(summaryValues(r,C,total));C.head.forEach((h,i)=>{if(h==='Spend')row.getCell(i+1).numFmt='$#,##0.00';if(h==='% of total')row.getCell(i+1).numFmt='0.0%'});if(r.n.act===0)row.font={color:{argb:'FF9AA5B1'}};row.eachCell(c=>c.border=border)});
+  summaryRows(model).forEach(r=>{const row=sv.addRow(summaryValues(r,C,total));C.head.forEach((h,i)=>{if(h==='Spend')row.getCell(i+1).numFmt='$#,##0.00';if(h==='% of total')row.getCell(i+1).numFmt='0.0%';const kk=activeKpis().find(x=>x.label===h);if(kk)row.getCell(i+1).numFmt=kpiFmtExcel(kk.fmt)});if(r.n.act===0)row.font={color:{argb:'FF9AA5B1'}};row.eachCell(c=>c.border=border)});
   sv.columns=C.head.map(h=>({width:h==='Campaign'?48:h==='Ad'?50:h==='Ad group'?32:['Status','Spend','Match types'].includes(h)?16:h.length>14?24:12}));
-  const st=wb.addWorksheet('Structure');const sh=[...dims.map(dimLabel),'Campaign','Ad group','Type','Keyword / Ad','Match type(s)','Status'];if(sp)sh.push('Spend');sh.push('Copies','Underlying campaigns','Headlines','Descriptions','Final URL');head(st,sh);
+  const st=wb.addWorksheet('Structure');const sh=[...dims.map(dimLabel),'Campaign','Ad group','Type','Keyword / Ad','Match type(s)','Status'];if(sp)sh.push('Spend');const KX=activeKpis();KX.forEach(k=>sh.push(k.label));sh.push('Copies','Underlying campaigns','Headlines','Descriptions','Final URL');head(st,sh);
   (function walk(n,path){
     if(n.level==='kw'||n.level==='ad'){const gp=path.filter(x=>x.level==='group'),c=path.find(x=>x.level==='campaign'),a=path.find(x=>x.level==='adgroup'),r0=n.rows[0];
       const v=[...dims.map((d,i)=>gp[i]?gp[i].name:''),c?displayName(c):'',a?displayName(a):'',n.level==='kw'?'Keyword':(r0.adType||'Ad'),n.level==='kw'?displayName(n):adTitle(r0),n.level==='kw'?matchTypes(n.matchSet):'',statusOf(n)];
-      if(sp)v.push(n.cost);
+      if(sp)v.push(n.cost);KX.forEach(k=>v.push(k.get(n)));
       v.push(n.rows.length,[...n.campSet].join('\n'),n.level==='ad'?r0.heads.map(h=>h.text+(h.pos?' [pin '+h.pos+']':'')).join('\n'):'',n.level==='ad'?r0.descs.map(h=>h.text+(h.pos?' [pin '+h.pos+']':'')).join('\n'):'',(r0.url||'').split('?')[0]);
-      const row=st.addRow(v);if(sp)row.getCell(dims.length+7).numFmt='$#,##0.00';return}
+      const row=st.addRow(v);if(sp)row.getCell(dims.length+7).numFmt='$#,##0.00';KX.forEach((k,i)=>row.getCell(dims.length+8+(sp?1:0)+i-1).numFmt=kpiFmtExcel(k.fmt));return}
     for(const k of sortKids([...n.kids.values()]))walk(k,[...path,n])})(model.root,[]);
   st.columns=[...dims.map(()=>({width:20})),{width:44},{width:30},{width:12},{width:44},{width:16},{width:13},...(sp?[{width:12}]:[]),{width:8},{width:40},{width:50},{width:60},{width:50}];
   const buf=await wb.xlsx.writeBuffer();blobDownload(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'account_structure.xlsx')}
